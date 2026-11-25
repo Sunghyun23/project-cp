@@ -25,6 +25,8 @@
 
 | D019 | 확정 | 운영 DB는 앱 서버와 별도 AWS DB 서비스로 분리 | 사용자 요구. 기존 단일 서버 DB 배치 추천 대체 |
 
+| D020 | 확정 | DB는 RDS for PostgreSQL Single-AZ 기준으로 설계 | 기획 단계임을 고려한 사용자 선택. 리소스는 생성하지 않음 |
+
 ## 추천안·미정
 
 - Godot 4 안정 버전 + GDScript는 추천안. 버전·언어 확정 전.
@@ -39,6 +41,6 @@
 - Google 연결 대상에 이미 진행 데이터가 있는 경우의 처리와 연결 후 복구 코드의 유효 범위는 미정.
 - 사용자가 ID·비밀번호 로그인을 끄는 기능은 추후 후보로 두며 현재 구현 범위에 포함하지 않는다.
 
-- 서버 추천안: Lightsail의 Caddy + Python/Django·REST Framework와 별도 AWS DB. DB는 RDS for PostgreSQL 추천, 앱은 Docker Compose 관리. 기술 선택은 사용자 검토 전이며 확정하지 않았다. [상세](07-technical/server-architecture.md)
+- 서버 추천안: Lightsail의 Caddy + Python/Django·REST Framework와 별도 AWS DB. DB는 RDS for PostgreSQL Single-AZ 확정, 앱은 Docker Compose 관리 추천. API 프레임워크 등 나머지 기술 선택은 추천 상태다. [상세](07-technical/server-architecture.md)
 
-- 별도 DB 서비스·사양·리전·Single-AZ/Multi-AZ·전체 호스팅 예산은 미정. Lightsail $7에 DB 요금이 포함되지 않는다.
+- DB 인스턴스·스토리지 사양·리전·전체 호스팅 예산은 미정. Lightsail $7에 DB 요금이 포함되지 않는다.
