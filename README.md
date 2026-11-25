@@ -7,7 +7,7 @@ Android용 캠핑 게임. 현재는 기획 단계이며 Godot으로 구현한다
 - 플랫폼: Android.
 - 엔진: Godot. 정확한 버전과 언어는 개발 환경 구성 시 결정한다.
 - 구현: AI가 코드 작성과 프로젝트 구성을 담당한다.
-- 로그인: [Google 로그인 직접 연동](docs/03-systems/authentication.md).
+- 로그인: [Google 로그인 직접 연동 + Android·웹 게스트 플레이](docs/03-systems/authentication.md).
 - 비용: 서버 호스팅을 제외한 운영비용 0원.
 - 초기 참여자: 두 명. 세부 역할 분담은 미정이다.
 - 기획: 한 사람이 AI와 대화하며 게임을 구체화하고 AI가 문서 대부분을 작성·갱신한다.
