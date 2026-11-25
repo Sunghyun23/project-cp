@@ -4,7 +4,7 @@ Android용 캠핑 게임. 현재는 기획 단계이며 Godot으로 구현한다
 
 ## 확정된 방향
 
-- 플랫폼: Android.
+- 플랫폼: Android + 웹. Godot 웹 빌드를 웹 서버에서 제공하고 공통 API를 사용한다.
 - 엔진: Godot. 정확한 버전과 언어는 개발 환경 구성 시 결정한다.
 - 구현: AI가 코드 작성과 프로젝트 구성을 담당한다.
 - 로그인: [Google 로그인 직접 연동 + Android·웹 게스트 플레이](docs/03-systems/authentication.md).

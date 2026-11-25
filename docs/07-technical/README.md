@@ -1,8 +1,8 @@
 # 기술 설계
 
-- 상태: 초안 — Godot과 Android 사용 확정
+- 상태: 초안 — Godot, Android·웹 서비스 확정
 - 담당: AI, 기획자 검토
-- 관련 문서: [개발 환경](development.md), [게임 프로젝트](../../game/README.md)
+- 관련 문서: [개발 환경](development.md), [서버 추천안](server-architecture.md), [게임 프로젝트](../../game/README.md)
 
 ## 구현 시작 시 작성할 문서
 
@@ -19,4 +19,4 @@ Godot 4 안정 버전과 GDScript는 이전 대화의 추천안이다.
 ## 로그인과 비용 제약
 
 [로그인 명세](../03-systems/authentication.md)에 따라 Google 로그인을 자체 서버에 직접 연동한다.
-서버 호스팅 외 운영비용 0원 조건을 기술 선택에 반영한다. 웹 지원과 저장 동기화는 아직 별도 결정이 필요하다.
+서버 호스팅 외 운영비용 0원 조건을 기술 선택에 반영한다. 웹도 서비스하며 Android와 공통 API를 사용한다. 저장 시점·동시 접속·충돌 처리는 별도로 결정한다.
