@@ -1,0 +1,16 @@
+.godot/
+.import/
+export.cfg
+export_credentials.cfg
+.DS_Store
+.idea/
+.vscode/
+**/build/
+**/builds/
+*.apk
+*.aab
+*.keystore
+*.jks
+.env
+.env.*
+!.env.example
