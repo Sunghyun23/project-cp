@@ -8,13 +8,13 @@
 
 운영 서버는 AWS Lightsail Linux의 공인 IPv4 포함 월 $7 요금제(메모리 1GB, SSD 40GB)를 기준으로 설계한다.
 가격은 선택 시점의 기본 요금이며 세금·백업·초과 트래픽·도메인 등의 총비용을 보장하지 않는다. 생성 전 해당 리전의 최신 요금과 포함량을 확인한다.
-DB는 애플리케이션 서버와분리한 Amazon RDS for PostgreSQL의 Single-AZ 구성을 기준으로 설계한다. 인스턴스 사양·스토리지·전체 예산은 아직 미정이다.
+DB는 앱 서버와 별도 EC2 인스턴스에 PostgreSQL을 직접 설치하여 운영한다. 이전 RDS 선택을 대체한다. 초기에는 단일 AZ·단일 DB 노드로 설계하며 인스턴스 사양·스토리지·전체 예산은 미정이다.
 현재는 설계만 수행하며 AWS 리소스 생성·결제·배포는 수행하지 않는다.
 
 ## 배치 제안
 
 Lightsail에는 Caddy와 Django API만 Docker Compose로 배치한다. 운영 PostgreSQL은 같은 서버의 컨테이너에 두지 않는다.
-별도 관리형 DB는 Amazon RDS for PostgreSQL Single-AZ를 사용한다. 로컬 개발·CI에는 별도 테스트 PostgreSQL 컨테이너를 사용할 수 있다.
+운영 DB는 별도 EC2의 자체 관리 PostgreSQL을 사용한다. 로컬 개발·CI에는 별도 테스트 PostgreSQL 컨테이너를 사용할 수 있다.
 서버 소프트웨어 구성은 기존 추천안이며 구체적 버전과 설정은 구현 단계에서 검증한다.
 AWS 전용 API 의존을 최소화해 다른 Linux VPS로 이전하기 쉽게 한다.
 
@@ -23,12 +23,15 @@ AWS 전용 API 의존을 최소화해 다른 Linux VPS로 이전하기 쉽게 �
 - 고정 IP를 인스턴스에 연결하고 HTTPS와 Google 로그인에 사용할 호스트 이름을 정한다. 도메인 구매·DNS 유료 서비스는 별도 결정한다.
 - 지원되는 Linux와 보안 업데이트 정책을 선택한다. 비밀 설정은 서버에서 주입하고 저장소에 넣지 않는다.
 
-## 별도 DB 연결 제안
+## 별도 EC2 DB 연결·운영 설계
 
-RDS는 Lightsail과 같은 AWS 리전의 기본 VPC에 배치하고 Lightsail VPC 피어링으로 연결하는 구성을 우선 검토한다.
-RDS는 public access를 끄고 DB 보안 그룹·라우팅·DNS를 구성하여 필요한 Lightsail API 접근만 허용한다. DB 연결 TLS와 인증서 검증을 적용한다.
-Lightsail의 직접 피어링은 기본 VPC를 사용하므로 계정의 기본 VPC 유무와 DB 서브넷 구성을 먼저 확인한다. 임의의 커스텀 VPC에 바로 연결된다고 가정하지 않는다.
-기획·초기 개발 단계의 비용을 고려하여 Single-AZ로 결정했다. 작은 지원 인스턴스를 우선 견적하며 자동 장애 전환은 제공하지 않는다는 점을 반영한다. 공개 운영 전 가용성 요구를 재검토하며 Multi-AZ 전환은 별도 결정한다.
+- EC2 DB는 Lightsail과 같은 리전의 기본 VPC에 배치하고 Lightsail VPC 피어링으로 사설 주소 연결을 구성하는 방식을 우선 검토한다. 기본 VPC 유무, 서브넷, 양방향 라우팅·DNS와 CIDR 중복을 확인한다.
+- PostgreSQL은 필요한 사설 인터페이스에서만 수신한다. 보안 그룹과 pg_hba.conf에서 API 서버의 필요한 사설 주소만 허용하고 TLS·서버 인증서 검증을 적용한다. DB 5432 포트를 인터넷에 공개하지 않는다.
+- 관리·보안 업데이트·백업 전송 경로는 별도로 설계한다. 공인 IP 없이 운영하려면 SSM·패키지 저장소 등의 접근 경로가 필요하며 NAT Gateway·VPC endpoint를 자동으로 무료라고 가정하지 않는다.
+- PostgreSQL은 지원되는 버전의 OS 패키지와 systemd로 직접 설치·실행하는 방향을 제안한다. OS·DB 버전과 설치·설정·재시작 절차를 코드와 문서로 재현 가능하게 관리한다.
+- 암호화된 영구 EBS에 DB 데이터를 저장하고 API 배포와 독립적으로 유지한다. 볼륨 삭제 정책을 명시하고 디스크·메모리·DB 연결·CPU 크레딧을 점검한다.
+- OS 보안 패치, PostgreSQL 업데이트·주 버전 업그레이드, 백업·복구·장애 대응은 직접 관리한다. EC2의 기반 시설 관리가 DB 관리를 대신하지 않는다.
+- 초기에는 단일 DB 노드이며 자동 장애 전환은 없다. 공개 운영 전 가용성 요구와 복제·관리형 DB 전환 필요성을 재검토한다.
 
 ## 1GB 메모리 제약
 
@@ -49,8 +52,9 @@ Lightsail의 직접 피어링은 기본 VPC를 사용하므로 계정의 기본 
 ## 백업·비용
 
 총비용은 Lightsail $7 + 별도 DB 인스턴스·스토리지·백업 초과·전송 등의 비용이다. 이전 $7 선택은 API 서버의 기본 요금이며 전체 서비스 비용이 아니다. 별도 DB 비용은 호스팅 예산에 포함해 검토한다.
-RDS의 자동 백업·보존 기간·복구 시점·삭제 보호를 설정하고 실제 복원 검증을 포함한다. 암호화된 백업을 NAS 등 별도 장비로 수신하는 방식은 후보이며 접근 경로·자동화·주기·보존 기간은 미정이다.
+PostgreSQL 정기 논리 백업과 실제 복원 검증을 직접 자동화한다. 필요한 복구 시점·허용 데이터 손실에 따라 WAL 보관과 시점 복구 도입 여부를 정한다. EBS 스냅샷만으로 DB 일관성이 보장된 백업이라고 가정하지 않는다. 암호화된 백업을 NAS 등 별도 장비로 수신하는 방식은 후보이며 접근 경로·자동화·주기·보존 기간은 미정이다.
 NAS의 DB 포트를 공개하거나 같은 서버에만 백업하는 방식은 사용하지 않는다.
+EC2 컴퓨팅·EBS·필요한 공인 IPv4·CPU 초과 크레딧·전송·백업을 포함하여 총비용을 다시 산정한다. RDS의 이전 견적은 현재 구성에 적용하지 않는다.
 유료 스냅샷·S3·관측 서비스는 요금과 필요성을 검토한 뒤 도입한다. 기본 호스팅 요금만으로 백업까지 포함된다고 간주하지 않는다.
 트래픽·디스크·지출을 점검하고 예산 알림을 검토한다. 예산 알림은 과금을 자동 차단하는 상한이 아니다.
 
@@ -60,5 +64,5 @@ NAS의 DB 포트를 공개하거나 같은 서버에만 백업하는 방식은 �
 
 - [AWS Lightsail 요금](https://aws.amazon.com/lightsail/pricing/)
 
-- [Lightsail과 RDS의 VPC 피어링](https://docs.aws.amazon.com/lightsail/latest/userguide/lightsail-how-to-set-up-vpc-peering-with-aws-resources.html)
-- [RDS PostgreSQL 요금](https://aws.amazon.com/rds/postgresql/pricing/)
+- [Lightsail VPC 피어링](https://docs.aws.amazon.com/lightsail/latest/userguide/lightsail-how-to-set-up-vpc-peering-with-aws-resources.html)
+- [EC2 요금](https://aws.amazon.com/ec2/pricing/on-demand/)

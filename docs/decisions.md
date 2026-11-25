@@ -22,10 +22,10 @@
 | D016 | 확정 | Google 연결 후에도 기존 ID·비밀번호 로그인 유지, 동일 게임 계정 사용 | 추천안에 사용자 동의 |
 | D017 | 확정 | Godot 웹 빌드 서비스와 Android가 공통 API 서버 사용 | 웹 제공 방식 설명에 사용자 동의 |
 | D018 | 확정 | 운영 서버는 AWS Lightsail IPv4 포함 1GB·월 $7 요금제 기준 설계 | 사용자 선택. 리소스 생성은 아직 수행하지 않음 |
+| D019 | 후속 구체화: D021 | 운영 DB는 앱 서버와 별도 AWS DB 서비스로 분리 | 사용자 요구. 기존 단일 서버 DB 배치 추천 대체 |
+| D020 | 대체됨: D021 | DB는 RDS for PostgreSQL Single-AZ 기준으로 설계 | 기획 단계임을 고려한 사용자 선택. 리소스는 생성하지 않음 |
 
-| D019 | 확정 | 운영 DB는 앱 서버와 별도 AWS DB 서비스로 분리 | 사용자 요구. 기존 단일 서버 DB 배치 추천 대체 |
-
-| D020 | 확정 | DB는 RDS for PostgreSQL Single-AZ 기준으로 설계 | 기획 단계임을 고려한 사용자 선택. 리소스는 생성하지 않음 |
+| D021 | 확정 | DB는 앱 서버와 별도 EC2에 PostgreSQL 직접 설치. 초기 단일 AZ·단일 DB 노드 | 사용자 선택으로 D020 대체. AWS 리소스 생성은 하지 않음 |
 
 ## 추천안·미정
 
@@ -41,6 +41,6 @@
 - Google 연결 대상에 이미 진행 데이터가 있는 경우의 처리와 연결 후 복구 코드의 유효 범위는 미정.
 - 사용자가 ID·비밀번호 로그인을 끄는 기능은 추후 후보로 두며 현재 구현 범위에 포함하지 않는다.
 
-- 서버 추천안: Lightsail의 Caddy + Python/Django·REST Framework와 별도 AWS DB. DB는 RDS for PostgreSQL Single-AZ 확정, 앱은 Docker Compose 관리 추천. API 프레임워크 등 나머지 기술 선택은 추천 상태다. [상세](07-technical/server-architecture.md)
+- 서버 추천안: Lightsail의 Caddy + Python/Django·REST Framework와 별도 EC2 DB. DB는 EC2 자체 관리 PostgreSQL 확정, 앱은 Docker Compose 관리 추천. API 프레임워크 등 나머지 기술 선택은 추천 상태다. [상세](07-technical/server-architecture.md)
 
 - DB 인스턴스·스토리지 사양·리전·전체 호스팅 예산은 미정. Lightsail $7에 DB 요금이 포함되지 않는다.
