@@ -1,0 +1,37 @@
+name: project-cp
+services:
+  db:
+    image: postgres:17.7-bookworm
+    environment:
+      POSTGRES_DB: camping
+      POSTGRES_USER: camping
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env}
+    volumes:
+      - prototype-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camping -d camping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build: ./server
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?copy .env.example to .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000 --noreload"]
+  web:
+    image: caddy:2.10.2-alpine
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./builds/web:/srv:ro
+    depends_on:
+      - api
+volumes:
+  prototype-db:

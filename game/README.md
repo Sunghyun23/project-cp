@@ -1,6 +1,12 @@
-# Godot 프로젝트 예정 위치
+# Godot 프로토타입
 
-기획 진행 후 이 폴더에 프로젝트를 만든다. 현재 project.godot과 실행 가능한 게임은 없다.
-scenes/, scripts/, assets/를 기반으로 엔진 표준 구조를 따른다.
-엔진 버전·언어·렌더러·Android 환경을 먼저 기록한다.
-[기술 설계](../docs/07-technical/README.md)를 참고한다.
+Godot 4.7.2 + GDScript + Compatibility 렌더러를 사용한다.
+`project.godot`을 열거나 저장소 루트에서 `bash tools/dev.sh play`로 실행한다. API 서버를 먼저 실행해야 한다.
+
+- scenes/main.tscn: 시작 씬.
+- scripts/main.gd: 임시 캠핑 도형, 화면 흐름과 HTTP API 연결.
+- assets/fonts/: Noto Sans KR과 OFL 라이선스.
+- export_presets.cfg: 단일 스레드 Web 디버그 빌드.
+
+임시 2D 화면과 제목이며 최종 표현 방식·화면 방향을 확정하지 않는다.
+[개발 환경](../docs/07-technical/development.md), [프로토타입 명세](../docs/07-technical/prototype.md)를 참고한다.

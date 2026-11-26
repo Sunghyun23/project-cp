@@ -14,3 +14,9 @@ export_credentials.cfg
 .env
 .env.*
 !.env.example
+.tools/
+.venv/
+__pycache__/
+*.pyc
+server/staticfiles/
+.codex-attachments/

@@ -1,0 +1,19 @@
+:80 {
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        root * /srv
+        @packs path *.pck
+        header @packs Content-Type application/octet-stream
+        header Cache-Control "no-store"
+        encode gzip {
+            match {
+                header Content-Type application/octet-stream application/wasm application/javascript text/*
+            }
+        }
+        file_server {
+            precompressed gzip
+        }
+    }
+}
