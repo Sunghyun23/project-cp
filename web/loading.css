@@ -1,0 +1,15 @@
+/* Godot export shell override: a game-specific loading screen. */
+@font-face{font-family:Camping;src:url('/assets/NotoSansKR.ttf');font-display:swap}
+body{background:#142b32!important}
+#status{font-family:Camping,system-ui,sans-serif!important;background:#142b32 url('/assets/campsite-night.png') 65% center/cover!important;isolation:isolate}
+#status:before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#0c1c3b33 25%,#10212f77 60%,#101f2cef);z-index:-1}
+#status-splash{display:none!important}
+.camp-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:clamp(30px,7vh,80px) 20px clamp(28px,6vh,60px);text-align:center;color:#fff2ce}
+.loading-heading{text-shadow:0 3px 24px #081829}.loading-heading span{font-size:11px;letter-spacing:4px;color:#d0dcc8}.loading-heading h1{font-size:clamp(27px,4vw,43px);letter-spacing:-1.5px;margin:12px 0 0;font-weight:600}.loading-heading .little-star{display:block;font-size:20px;line-height:1;color:#edcf8e;margin-top:16px;letter-spacing:12px}
+.loading-card{width:min(390px,100%);padding:24px 28px;background:#112b32ed;border:1px solid #e6cb8e55;border-radius:16px;box-shadow:0 15px 60px #04132177;backdrop-filter:blur(7px)}
+.loading-card .tag{display:inline-flex;align-items:center;gap:7px;font-size:10px;color:#c3d0bd}.loading-card .tag:before{content:'';width:6px;height:6px;background:#efcc84;box-shadow:0 0 12px #f4b060}
+.loading-card h2{font-size:19px;font-weight:500;margin:14px 0 9px;letter-spacing:-.5px}.loading-card p{font-size:11px;line-height:1.8;color:#b3c8bd;margin:0}.loading-meter{display:flex;justify-content:space-between;gap:10px;font-size:10px;color:#cbd9c9;margin-top:24px}#camp-percentage{color:#ffe1a7;font-variant-numeric:tabular-nums}
+#status-progress{position:static!important;display:block!important;width:100%!important;height:6px;margin:9px 0 13px!important;border:0;border-radius:0;appearance:none;background:#38544e;accent-color:#f1ce8f}#status-progress::-webkit-progress-bar{background:#38544e}#status-progress::-webkit-progress-value{background:linear-gradient(90deg,#96b896,#f1d198)}#status-progress::-moz-progress-bar{background:#f1ce8f}#loading-tip{min-height:36px}.loading-footer{font-size:9px!important;color:#8ea8a0!important;border-top:1px solid #456057;margin-top:18px!important;padding-top:12px}
+#status-notice{position:absolute;bottom:20px;background:#502f32!important;max-width:600px;font-size:12px;z-index:3}
+@media(max-height:550px){.camp-loading{flex-direction:row;justify-content:space-around;padding:22px;gap:30px}.loading-heading{flex:1}.loading-heading h1{font-size:25px}.loading-card{width:330px;padding:18px}.loading-heading span{letter-spacing:1px}}
+@media(prefers-reduced-motion:no-preference){.loading-card .tag:before{animation:camp-pulse 1.6s ease-in-out infinite alternate}@keyframes camp-pulse{to{opacity:.45}}}

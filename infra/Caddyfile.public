@@ -9,7 +9,7 @@
         root * /srv
         @packs path *.pck
         header @packs Content-Type application/octet-stream
-        header Cache-Control "no-store"
+        header Cache-Control "no-cache"
         encode gzip {
             match {
                 header Content-Type application/octet-stream application/wasm application/javascript text/*

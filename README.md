@@ -27,13 +27,15 @@ AGENTS.md       AI 작업 규칙
 docs/           기획·UX·아트·기술·제작 문서
 design/         Figma 링크와 디자인 전달 규칙
 art/source/     편집 가능한 에셋 원본
-game/           Godot 프로토타입
+game/           Godot 픽셀 캠핑장 프로토타입
+web/            별도 로그인 화면
 server/         Java/Spring Boot API와 진행 저장
 infra/          로컬 Caddy 설정
 tools/          설치·실행·검증 스크립트
 ```
 
 최종 2D/3D, 화면 방향, 핵심 재미와 전체 MVP는 아직 미정이다. 현재는 [한 주 흐름](docs/02-gameplay/session-flow.md)을 임시 2D 화면과 압축 조작으로 검증한다.
+[픽셀 캠핑장·애니메이션](docs/06-art-audio/pixel-prototype.md)과 별도 웹 로그인 화면을 구현했다. 공개 웹에서 실제 Google 로그인 성공을 사용자가 확인했으며 Android 네이티브 연동은 별도 검증한다.
 실행은 [개발 환경](docs/07-technical/development.md), 구현 범위와 임시 가정은 [프로토타입 명세](docs/07-technical/prototype.md)를 참고한다.
 Figma는 UI·화면 흐름·아트 방향 설계에 활용할 수 있지만 모든 기능의 필수 선행 단계는 아니다.
 작업과 버그는 GitHub Issues로 추적한다. 푸시는 항상 원격 `main` 브랜치에 하며, 다른 브랜치의 변경도 `main`에 반영한 뒤 푸시한다.

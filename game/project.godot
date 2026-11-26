@@ -2,6 +2,8 @@ config_version=5
 
 [application]
 config/name="이번 주말은 캠핑"
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.078, 0.169, 0.196, 1)
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 

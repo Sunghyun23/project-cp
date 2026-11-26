@@ -17,6 +17,9 @@ services:
     build: ./server
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      CP_WEB_ORIGIN: ${CP_WEB_ORIGIN:-http://localhost:8080}
+      CP_SECURE_COOKIES: ${CP_SECURE_COOKIES:-false}
       JAVA_TOOL_OPTIONS: -Xms32m -Xmx160m -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=16m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
     mem_limit: 384m
     depends_on:

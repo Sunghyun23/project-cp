@@ -33,6 +33,8 @@ compose_args=(-f compose.server.yaml)
 if grep -q "^CP_WEB_HOST=" .env; then compose_args+=(-f compose.public.yaml); fi
 sudo docker compose "${compose_args[@]}" config --quiet
 sudo docker compose "${compose_args[@]}" up -d
+# Recreate the bind mount so changed Caddy configuration is actually loaded.
+sudo docker compose "${compose_args[@]}" up -d --no-deps --force-recreate web
 python3 - <<'PY'
 import urllib.request,json,time
 for attempt in range(40):

@@ -1,6 +1,12 @@
 extends Control
 
 const FONT = preload("res://assets/fonts/NotoSansKR.ttf")
+const DAY = preload("res://assets/pixel/campsite-day.png")
+const NIGHT = preload("res://assets/pixel/campsite-night.png")
+const CAMPER_SHEET = preload("res://assets/pixel/camper-animations.png")
+const SCENERY_SHADER = preload("res://assets/pixel/campsite.gdshader")
+const HUD = preload("res://scripts/camp_hud.gd")
+const LIGHTING_3D = preload("res://scripts/camp_lighting_3d.gd")
 const SAVE_PATH = "user://prototype_session.cfg"
 const TITLES = {"work": "주말을 기다리는 평일", "shopping": "이번 저녁엔 뭘 먹을까?", "packing": "트렁크에 주말을 담아요", "setup": "나만의 작은 캠프", "free": "잠깐, 아무것도 하지 않기", "dinner": "밖에서 먹으면 더 맛있지", "night": "불 앞에서 보내는 밤", "breakfast": "느긋한 아침 한 입", "teardown": "머문 자리를 정리해요", "settlement": "잘 쉬었다. 다음 주에도!"}
 var state: Dictionary = {}
@@ -12,7 +18,22 @@ var request_kind := ""
 var message := "서버에 연결하는 중이에요."
 var http: HTTPRequest
 var content: VBoxContainer
-var outer_margin: MarginContainer
+var hud
+var lighting_3d
+var real_3d := false
+var real_shadows := true
+var actions: GridContainer
+var ground_fade: GradientTexture2D
+var camper_sprite: AnimatedSprite2D
+var scenery: TextureRect
+var scenery_material: ShaderMaterial
+var visual_time := 0.0
+var preview_mode := "auto"
+var camper_position := Vector2(0.60, 0.80)
+var camper_target := Vector2(0.60, 0.80)
+var facing_left := false
+var depth_enabled := true
+var camera_focus := Vector2.ZERO
 
 func _ready() -> void:
 	get_tree().root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
@@ -27,18 +48,62 @@ func _ready() -> void:
 	theme_asset.default_font = readable_font
 	theme_asset.default_font_size = 17
 	theme = theme_asset
-	var margin := MarginContainer.new()
-	outer_margin = margin
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 30)
-	add_child(margin)
-	var scroll := ScrollContainer.new()
-	margin.add_child(scroll)
-	content = VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 13)
-	scroll.add_child(content)
+	var ground_gradient := Gradient.new()
+	ground_gradient.colors=PackedColorArray([Color(0.13,0.25,0.17,0),Color(0.13,0.25,0.17,1)])
+	ground_fade=GradientTexture2D.new()
+	ground_fade.gradient=ground_gradient
+	ground_fade.fill_from=Vector2.ZERO
+	ground_fade.fill_to=Vector2(0,1)
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	scenery = TextureRect.new()
+	scenery.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scenery.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	scenery.stretch_mode = TextureRect.STRETCH_SCALE
+	scenery.z_index = -1
+	scenery_material = ShaderMaterial.new()
+	scenery_material.shader = SCENERY_SHADER
+	scenery.material = scenery_material
+	add_child(scenery)
+	camper_sprite = AnimatedSprite2D.new()
+	var frames := SpriteFrames.new()
+	frames.remove_animation("default")
+	var cell := Vector2(CAMPER_SHEET.get_size()) / Vector2(4, 2)
+	for row in range(2):
+		var animation := "idle" if row == 0 else "walk"
+		frames.add_animation(animation)
+		frames.set_animation_speed(animation, 1.0 if row == 0 else 7.0)
+		for column in range(4):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = CAMPER_SHEET
+			atlas.region = Rect2(Vector2(column, row) * cell, cell)
+			frames.add_frame(animation, atlas, [2.2, 0.45, 0.12, 0.45][column] if row == 0 else 1.0)
+	camper_sprite.sprite_frames = frames
+	camper_sprite.offset = Vector2(0, -cell.y * 0.46)
+	camper_sprite.z_index = 1
+	add_child(camper_sprite)
+	camper_sprite.play("idle")
+	lighting_3d=LIGHTING_3D.new()
+	lighting_3d.z_index=-1
+	lighting_3d.visible=false
+	add_child(lighting_3d)
+	hud=HUD.new()
+	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(hud)
+	content=hud.content
+	hud.account_requested.connect(func():
+		if OS.has_feature("web"):JavaScriptBridge.eval("window.location.assign('/')")
+	)
+	hud.reload_requested.connect(_load_state)
+	hud.view_selected.connect(func(id: int):
+		if id<=2:
+			preview_mode=["auto","day","night"][id]
+		elif id==3:
+			real_3d=not real_3d
+			if real_3d:preview_mode="night"
+		elif id==4:
+			real_shadows=not real_shadows
+		_render()
+	)
 	resized.connect(_layout)
 	_layout()
 	http = HTTPRequest.new()
@@ -52,43 +117,123 @@ func _ready() -> void:
 	_load_state()
 	print("Prototype viewport: ", get_viewport_rect().size, " control: ", size, " window: ", get_tree().root.size)
 
+func _is_night() -> bool:
+	return preview_mode == "night" or (preview_mode == "auto" and state.get("phase", "") == "night")
+
+func _scene_rect() -> Rect2:
+	if size.x<600:
+		return Rect2(Vector2.ZERO,Vector2(size.x,maxf(320,size.y*0.72)))
+	return Rect2(Vector2.ZERO,size)
+
+func _source_rect() -> Rect2:
+	var area := _scene_rect()
+	var dimensions := Vector2(DAY.get_size())
+	var scale_factor := maxf(area.size.x / dimensions.x, area.size.y / dimensions.y)
+	var visible := area.size / scale_factor
+	return Rect2((dimensions - visible) * Vector2(0.78 if size.x<600 else 0.88, 0.5), visible)
+
+func _scene_point(point: Vector2) -> Vector2:
+	var source := _source_rect()
+	return _scene_rect().position + (point * Vector2(DAY.get_size()) - source.position) * (_scene_rect().size.x / source.size.x)
+
 func _layout() -> void:
-	if outer_margin == null:
-		return
-	var edge := 18 if size.x < 500 else 30
-	outer_margin.add_theme_constant_override("margin_left", edge)
-	outer_margin.add_theme_constant_override("margin_right", maxi(edge, int(size.x) - 660))
-	outer_margin.add_theme_constant_override("margin_top", edge)
-	outer_margin.add_theme_constant_override("margin_bottom", edge)
+	if scenery==null:return
+	scenery.position=_scene_rect().position
+	scenery.size=_scene_rect().size
+	if lighting_3d!=null:
+		lighting_3d.position=Vector2.ZERO
+		lighting_3d.size=size
+	if hud!=null:hud.fit.call_deferred()
 	queue_redraw()
 
-func _draw() -> void:
-	var night: bool = state.get("phase", "") == "night"
-	draw_rect(Rect2(Vector2.ZERO, size), Color("102a30") if night else Color("cadbd1"))
-	draw_circle(Vector2(size.x * 0.84, size.y * 0.22), 46, Color("f7dc9b"))
-	draw_colored_polygon(PackedVector2Array([Vector2(0, size.y * 0.7), Vector2(size.x * 0.25, size.y * 0.29), Vector2(size.x * 0.58, size.y * 0.8), Vector2(size.x, size.y * 0.4), size, Vector2(0, size.y)]), Color("6c9389"))
-	draw_colored_polygon(PackedVector2Array([Vector2(0, size.y * 0.85), Vector2(size.x * 0.5, size.y * 0.63), Vector2(size.x, size.y * 0.83), size, Vector2(0, size.y)]), Color("315b51"))
-	var camp := Vector2(size.x * 0.81, size.y * 0.86)
-	draw_colored_polygon(PackedVector2Array([camp + Vector2(-100, 0), camp + Vector2(0, -118), camp + Vector2(115, 0)]), Color("dfa760"))
-	draw_colored_polygon(PackedVector2Array([camp + Vector2(-37, 0), camp + Vector2(0, -86), camp + Vector2(40, 0)]), Color("244940"))
-	for i in range(4):
-		var tree := Vector2(size.x * (0.62 + i * 0.105), size.y * 0.64)
-		draw_rect(Rect2(tree, Vector2(7, 65)), Color("476450"))
-		draw_colored_polygon(PackedVector2Array([tree + Vector2(-28, 22), tree + Vector2(3, -55), tree + Vector2(35, 22)]), Color("234b42"))
-	if night:
-		for i in range(20):
-			draw_circle(Vector2(fmod(i * 139.0 + 40, size.x), 25 + fmod(i * 71.0, size.y * 0.35)), 2, Color("fff0c2"))
-		draw_circle(camp + Vector2(-120, 0), 15, Color("f69c54"))
-	var backdrop := StyleBoxFlat.new()
-	backdrop.bg_color = Color(0.055, 0.14, 0.13, 0.95)
-	backdrop.set_corner_radius_all(20)
-	draw_style_box(backdrop, Rect2(18, 18, minf(size.x - 36, 690), size.y - 36))
+func _process(delta: float) -> void:
+	visual_time += delta
+	var target_focus := Vector2.ZERO
+	if depth_enabled and _scene_rect().has_point(get_local_mouse_position()):
+		target_focus = (get_local_mouse_position() - _scene_rect().get_center()) / _scene_rect().size * 2.0
+	camera_focus = camera_focus.lerp(target_focus, minf(1.0, delta * 3.0))
+	var previous := camper_position
+	camper_position = camper_position.move_toward(camper_target, delta * 0.055)
+	if absf(camper_position.x - previous.x) > 0.00001:
+		facing_left = camper_position.x < previous.x
+	queue_redraw()
 
-func _label(text_value: String, font_size: int = 17) -> void:
+func _gui_input(event: InputEvent) -> void:
+	var pressed: bool = event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed
+	if not pressed or not _scene_rect().has_point(event.position):
+		return
+	var source := _source_rect()
+	var uv: Vector2 = ((event.position - _scene_rect().position) / _scene_rect().size * source.size + source.position) / Vector2(DAY.get_size())
+	camper_target = Vector2(clampf(uv.x, 0.47, 0.66), clampf(uv.y, 0.74, 0.92))
+
+func _draw() -> void:
+	if scenery == null:
+		return
+	var night := _is_night()
+	scenery.visible=not real_3d
+	lighting_3d.visible=real_3d
+	camper_sprite.visible=not real_3d
+	if real_3d:
+		lighting_3d.night=night
+		lighting_3d.shadows=real_shadows
+		return
+	scenery.texture = NIGHT if night else DAY
+	scenery_material.set_shader_parameter("night", night)
+	scenery_material.set_shader_parameter("depth_enabled", depth_enabled)
+	scenery_material.set_shader_parameter("parallax", camera_focus)
+	var area := _scene_rect()
+	var source := _source_rect()
+	if area.end.y<size.y:
+		draw_rect(Rect2(0,area.end.y,size.x,size.y-area.end.y),Color(0.13,0.25,0.17,1))
+		draw_texture_rect(ground_fade,Rect2(0,area.end.y-75,size.x,75),false)
+	scenery_material.set_shader_parameter("source_offset", source.position / Vector2(DAY.get_size()))
+	scenery_material.set_shader_parameter("source_scale", source.size / Vector2(DAY.get_size()))
+	var scale_factor := area.size.x / source.size.x
+	var walking := camper_position.distance_to(camper_target) > 0.001
+	var foot := _scene_point(camper_position) + camera_focus * Vector2(7, 3) * scale_factor
+	var sprite_height := Vector2(DAY.get_size()).y * 0.22 * scale_factor
+	var cell := Vector2(CAMPER_SHEET.get_size()) / Vector2(4, 2)
+	var shadow_offset := Vector2(3, 2) if depth_enabled else Vector2.ZERO
+	draw_set_transform(foot + shadow_offset, 0, Vector2(1, 0.25))
+	draw_circle(Vector2.ZERO, sprite_height * 0.21, Color(0.02, 0.05, 0.08, 0.30))
+	draw_set_transform(Vector2.ZERO)
+	camper_sprite.position = foot
+	camper_sprite.scale = Vector2.ONE * sprite_height / (cell.y * 0.9)
+	camper_sprite.flip_h = facing_left
+	camper_sprite.modulate = Color("ccd5ee") if night else Color.WHITE
+	if night and depth_enabled:
+		var warmth := clampf(1.0 - camper_position.distance_to(Vector2(0.738, 0.755)) * 4.0, 0.0, 1.0)
+		camper_sprite.modulate = camper_sprite.modulate.lerp(Color("ffe0b3"), warmth * 0.45)
+	var animation := "walk" if walking else "idle"
+	if camper_sprite.animation != animation:
+		camper_sprite.play(animation)
+	if night:
+		var fire := _scene_point(Vector2(0.738, 0.735))
+		for i in range(9):
+			var life := fmod(visual_time * 0.45 + i * 0.13, 1.0)
+			var spark := fire + Vector2(sin(i * 4.0 + life * 5.0) * 18, -life * 100) * scale_factor
+			var spark_depth := 0.65 + (i % 3) * 0.4 if depth_enabled else 1.0
+			draw_rect(Rect2(spark, Vector2.ONE * maxf(2, scale_factor * 3 * spark_depth)), Color(1, 0.65, 0.24, (1.0 - life) / spark_depth))
+	if depth_enabled:
+		_draw_atmosphere(area, scale_factor, night)
+
+func _draw_atmosphere(area: Rect2, scale_factor: float, night: bool) -> void:
+	# A few particles move at different depths; every effect stays inside the scenery.
+	for i in range(24):
+		var depth := 0.5 + (i % 3) * 0.55
+		var x := fmod(i * 107.0 + visual_time * 3.5 * depth, area.size.x)
+		var y := area.size.y * (0.38 + fmod(i * 0.173, 0.56)) + sin(visual_time * 0.6 + i) * 5
+		var point := area.position + Vector2(x, y) + camera_focus * depth * 3
+		var alpha := (0.09 + 0.08 * sin(visual_time + i)) if night else (0.13 + 0.06 * sin(visual_time * 0.7 + i))
+		var tint := Color(0.9, 0.84, 0.55, alpha) if night else Color(1, 0.96, 0.77, alpha)
+		if area.has_point(point):
+			draw_rect(Rect2(point, Vector2.ONE * maxf(1, depth * 2 * scale_factor)), tint)
+
+func _label(text_value: String, font_size: int = 15) -> void:
 	var label := Label.new()
 	label.text = text_value
 	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Color("fff5df"))
+	label.add_theme_color_override("font_color", Color("304b40"))
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(label)
 
@@ -100,33 +245,40 @@ func _button(text_value: String, command: String, choice: String = "", enabled: 
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.disabled = busy or not enabled
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("f0d6a3")
+	style.bg_color = Color("2e5848")
 	style.set_corner_radius_all(10)
 	style.content_margin_left = 22
 	style.content_margin_right = 22
 	button.add_theme_stylebox_override("normal", style)
-	button.add_theme_color_override("font_color", Color("203f39"))
+	button.add_theme_color_override("font_color", Color("fff3d5"))
 	button.pressed.connect(func():
 		if command == "reload":
 			_load_state()
 		else:
 			_send("actions/", {"command": command, "choice": choice, "version": version})
 	)
-	content.add_child(button)
+	if actions==null:
+		actions=GridContainer.new()
+		actions.columns=2
+		actions.add_theme_constant_override("h_separation",8)
+		actions.add_theme_constant_override("v_separation",8)
+		content.add_child(actions)
+	actions.add_child(button)
+	actions.columns=mini(2,actions.get_child_count())
 
 func _render() -> void:
 	for child in content.get_children():
 		content.remove_child(child)
 		child.queue_free()
-	_label("WEEKEND NOTES  /  CAMPING", 15)
-	_label("이번 주말은 캠핑", 34)
+	actions=null
+	hud.update_stats(state,message)
+	hud.set_view(real_3d,real_shadows)
 	if state.is_empty():
 		_label(message)
 		_button("서버 다시 연결", "reload")
 		return
 	var phase: String = state.phase
-	_label("%d주 차   ·   소지금 %d   ·   힘 %d   행운 %d   체력 %d" % [state.week, state.money, state.strength, state.luck, state.stamina], 18)
-	_label(TITLES.get(phase, phase), 27)
+	_label(TITLES.get(phase, phase), 21)
 	match phase:
 		"work":
 			_label("%s요일 · 오늘의 서류를 처리하고 캠핑 비용을 모아요." % ["월", "화", "수", "목", "금"][int(state.day)])
@@ -172,12 +324,13 @@ func _render() -> void:
 		"settlement":
 			_label("재료를 사용하고 몸과 마음을 회복했어요.\n레시피 %d종 기록 · 이번 요리 %s\n소지금과 스탯, 레시피 기록은 다음 주에도 유지돼요." % [state.recipes.size(), "★".repeat(int(state.stars))])
 			_button("다음 주 시작", "next")
-	_label(message, 14)
-	_button("저장된 진행 다시 불러오기", "reload")
+	hud.fit.call_deferred()
 	queue_redraw()
 
 func _load_state() -> void:
-	if token.is_empty():
+	if OS.has_feature("web"):
+		_send("state/")
+	elif token.is_empty():
 		_send("sessions/", {})
 	else:
 		_send("state/")
@@ -190,7 +343,9 @@ func _send(endpoint: String, body: Variant = null) -> void:
 	message = "진행을 저장하고 있어요…" if endpoint == "actions/" else "서버에 연결하고 있어요…"
 	_render()
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	if not token.is_empty():
+	if OS.has_feature("web"):
+		headers.append("X-CP-Request: 1")
+	elif not token.is_empty():
 		headers.append("Authorization: Bearer " + token)
 	var method := HTTPClient.METHOD_GET if body == null else HTTPClient.METHOD_POST
 	var error := http.request(base_url + endpoint, headers, method, "" if body == null else JSON.stringify(body))
@@ -209,6 +364,8 @@ func _on_response(result: int, code: int, _headers: PackedStringArray, body: Pac
 	elif code >= 400:
 		message = data.get("error", "요청에 실패했어요.")
 		if code == 401:
+			if OS.has_feature("web"):
+				JavaScriptBridge.eval("window.location.assign('/')")
 			message += " 테스트 세션이 만료됐어요. 다시 연결하면 새 진행을 시작해요."
 			token = ""
 	elif data.has("state"):

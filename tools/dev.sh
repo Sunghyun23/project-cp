@@ -18,6 +18,7 @@ case "${1:-help}" in
       web)
         mkdir -p builds/web
         "$godot_bin" --headless --path game --editor --import --quit
+        "$godot_bin" --headless --path game --check-only --script res://scripts/main.gd
         "$godot_bin" --headless --path game --export-debug Web ../builds/web/index.html
         python3 tools/prepare-web.py
         ;;
