@@ -14,9 +14,10 @@
 | 언어·렌더러 | GDScript, Compatibility |
 | 임시 화면 | 초기 macOS 창 1100×760, 실제 창·브라우저 크기에 맞춤, 센서 방향. 최종 방향 미정 |
 | Web | 단일 스레드, 디버그 내보내기 |
-| Python | Docker 이미지 3.13.7-slim-bookworm |
-| Django / DRF | 5.2.19 / 3.18.3 |
-| Psycopg | 3.3.9, 간접 의존성도 requirements.txt에 고정 |
+| Java | 21, Temurin 실행 JRE 21.0.13+9, 이미지 digest 고정 |
+| 빌드 | Maven 3.9.11 + Temurin JDK 21.0.9, 빌드 이미지 digest 고정 |
+| Spring Boot | 4.2.0, 의존성 버전은 해당 BOM으로 관리 |
+| DB 접근·마이그레이션 | Spring JDBC·Flyway, 버전은 Spring Boot BOM 기준 |
 | PostgreSQL | Docker 이미지 17.7-bookworm |
 | Caddy | Docker 이미지 2.10.2-alpine |
 | Docker / Compose 검증 버전 | 28.3.2 / 2.38.2 |
@@ -39,13 +40,13 @@ bash tools/dev.sh web
 
 - 브라우저: <http://localhost:8080>. 같은 출처의 `/api/`를 사용한다.
 - macOS 창: `bash tools/dev.sh play`. API는 `127.0.0.1:8000`을 사용한다.
-- 검사: `bash tools/dev.sh check`.
+- API 검사: `bash tools/test-server.sh`. 전체 검사: `bash tools/dev.sh check`. 호스트 JDK·Maven 없이 Docker 빌드 이미지를 사용한다.
 - Web 재빌드: `bash tools/dev.sh web` 후 브라우저 새로고침.
 - 서버 코드 변경: `bash tools/dev.sh server`로 재빌드.
 - 종료: `bash tools/dev.sh stop`. DB 볼륨은 유지된다.
 
 다른 Godot 설치는 `GODOT_BIN=/절대/경로/Godot bash tools/dev.sh play`로 지정한다. 스크립트는 4.7.2 버전을 검사한다.
-웹 8080·API 8000은 루프백에만 바인딩하고 DB 포트는 공개하지 않는다. Django 개발 서버를 사용하는 로컬 구성이다. 운영 프로세스·HTTPS·배포는 별도 작업이다.
+웹 8080·API 8000은 루프백에만 바인딩하고 DB 포트는 공개하지 않는다. Spring Boot 내장 Tomcat을 사용하는 로컬 구성이다. 운영 프로세스·HTTPS·배포는 별도 작업이다.
 
 ## 저장과 복원
 
@@ -54,15 +55,16 @@ bash tools/dev.sh web
 
 ## 검증
 
-2026-11-26에 Godot 가져오기·Web 내보내기, Django 설정·마이그레이션 검사, 실제 PostgreSQL을 사용하는 테스트 6개를 통과했다. 자동 테스트는 두 요리의 주간 완주·저장 재조회, 숙련도 보너스 별, 오래된 요청 거부, 잘못된 토큰·단계·선행 조건을 확인한다.
-Codex 리모트 미리보기의 319×1163 화면에서도 검은 레터박스 없이 UI가 표시되는 것을 확인했다. 고정 비율 축소를 끄고 실제 뷰포트에 맞추며 좁은 화면에서 텍스트·버튼을 줄바꿈한다. 화면·입력 확인과 자동 테스트를 구분한다. Android 빌드·실기기, 15분 플레이 시간, 성능·재미, AWS 배포·백업 복원은 미검증이다.
+2026-11-26에 Java API 통합 테스트 8개를 실제 PostgreSQL의 분리된 테스트 DB에서 통과했다. 두 요리의 주간 완주·재조회, 보너스 별, 잘못된 단계·토큰·본문, 선행 조건, 동시 요청의 200/409 분리, 기존 Django 형식 데이터 호환을 확인한다. 테스트는 `compose.test.yaml`을 사용하며 실제 로컬 진행 DB를 지우지 않는다.
+기존 로컬 DB는 전환 전 `builds/backups/before-java.dump`에 백업했다. Django에서 발급한 비교용 토큰으로 Java에서 조회해 진행·버전의 완전 일치를 확인했다. Flyway 이력은 `cp_migrations` 스키마, 기존 게임 데이터는 `public.prototype_prototypesession`에 보존한다.
+Codex 리모트 미리보기의 319×1163 화면에서도 검은 레터박스 없이 UI가 표시되는 것을 확인했다. 고정 비율 축소를 끄고 실제 뷰포트에 맞추며 좁은 화면에서 텍스트·버튼을 줄바꿈한다. 화면·입력 확인과 자동 테스트를 구분한다. Android 빌드·실기기, 15분 플레이 시간, 장시간 성능·재미는 미검증이다. AWS 배포·3개 세션 저장·재시작 유지·백업 복원과 SSH 경유 응답 시간은 [서버 검증 기록](../../server/README.md#확인한-결과와-한계)을 참고한다.
 
 ## 공식 참고
 
 - [Godot 다운로드](https://godotengine.org/download/macos/)
 - [Godot Android 내보내기](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_android.html)
-- [Django 배포 버전](https://www.djangoproject.com/download/)
-- [Psycopg 설치](https://www.psycopg.org/install/)
+- [Spring Boot 요구 사항](https://docs.spring.io/spring-boot/system-requirements.html)
+- [서버 실행·배포](../../server/README.md)
 
 ## 모바일 컴퓨터 미리보기의 로딩 오류 조사
 

@@ -1,0 +1,50 @@
+name: project-cp
+services:
+  db:
+    image: postgres:17.7-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: camping
+      POSTGRES_USER: camping
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?server .env required}
+    command: ["postgres", "-c", "shared_buffers=32MB", "-c", "max_connections=20", "-c", "work_mem=2MB"]
+    mem_limit: 160m
+    volumes:
+      - prototype-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camping -d camping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging: &logging
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+  api:
+    image: project-cp-api:0.1.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx160m -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=16m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    mem_limit: 384m
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+  web:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./builds/web:/srv:ro
+    depends_on:
+      - api
+    logging: *logging
+volumes:
+  prototype-db:

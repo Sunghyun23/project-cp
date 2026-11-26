@@ -1,0 +1,15 @@
+# 공개 HTTPS를 명시적으로 활성화할 때만 서버 구성과 함께 사용한다.
+services:
+  web:
+    environment:
+      CP_WEB_HOST: ${CP_WEB_HOST:?HTTPS hostname required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+volumes:
+  caddy-data:
+  caddy-config:

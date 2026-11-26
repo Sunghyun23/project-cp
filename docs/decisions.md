@@ -24,7 +24,7 @@
 | D018 | 확정 | 운영 서버는 AWS Lightsail IPv4 포함 1GB·월 $7 요금제 기준 설계 | 사용자 선택. 리소스 생성은 아직 수행하지 않음 |
 | D019 | 후속 구체화: D021 | 운영 DB는 앱 서버와 별도 AWS DB 서비스로 분리 | 사용자 요구. 기존 단일 서버 DB 배치 추천 대체 |
 | D020 | 대체됨: D021 | DB는 RDS for PostgreSQL Single-AZ 기준으로 설계 | 기획 단계임을 고려한 사용자 선택. 리소스는 생성하지 않음 |
-| D021 | 확정 | DB는 앱 서버와 별도 EC2에 PostgreSQL 직접 설치. 초기 단일 AZ·단일 DB 노드 | 사용자 선택으로 D020 대체. AWS 리소스 생성은 하지 않음 |
+| D021 | 초기 배치 대체됨: D036 | DB는 앱 서버와 별도 EC2에 PostgreSQL 직접 설치. 초기 단일 AZ·단일 DB 노드 | 사용자 선택으로 D020 대체. AWS 리소스 생성은 하지 않음 |
 | D022 | 확정 | 별도 작업 브랜치를 만들지 않고 원격 `main`에 직접 푸시 | 사용자 지시. README의 기존 작업 브랜치·PR 활용 안내를 대체하며, 다른 브랜치의 변경도 기존 작업을 보존해 `main`에 반영한 뒤 푸시 |
 | D023 | 확정 | 더 좋은 조리 장비는 조리 시간을 단축하고 요리의 맛과 섭취 효과를 높인다 | 사용자 결정. [요리 규칙](03-systems/README.md#요리) |
 | D024 | 확정 | 조리 장비가 좋아질수록 사용할 수 있는 재료와 조리할 수 있는 레시피가 늘어난다 | 사용자 결정. [요리 규칙](03-systems/README.md#요리) |
@@ -39,8 +39,11 @@
 | D033 | 확정 | 평일 사무 업무는 종이 넘기기, 서류별 미니게임, 서류 분류 퍼즐 세 방식을 각각 닷새씩 테스트한다 | 사용자 결정. 최종 방식은 테스트 후 선택. [사무 업무 비교안](02-gameplay/session-flow.md#사무-업무-비교안) |
 | D034 | 확정 | 기획을 변경하며 현재 기획 기반의 간단한 에셋 프로토타입을 만들고 서버 환경을 함께 구성 | 2026-11-26 사용자 요청. D006의 기획 우선 순서를 이 범위에서 구체화해 기획과 구현을 병행. [범위](07-technical/prototype.md) |
 | D035 | 확정 | Android 일반 스마트폰과 폴더블 커버·내부 화면에서 다양한 해상도·화면 비율을 지원 | 2026-11-26 사용자 요구. 화면 크기 변화와 접기·펼치기에 대응하며 기종·구체적인 해상도 범위와 최종 화면 방향은 미정. [사양](07-technical/android.md) |
+| D036 | 확정 | 초기 테스트는 시드니(ap-southeast-2)의 Lightsail 월 $7·1GB 한 대에 웹·API·PostgreSQL을 함께 배치하고, 이후 서울 이전을 준비 | 2026-11-26 사용자 선택. 최대 동시 접속 3명 테스트 기준으로 D021의 초기 별도 EC2 DB 배치를 대체. 초기에는 사용자가 콘솔을 조작했으며 이후 직접 SSH 관리를 AI에 허용했다. [운영 환경](07-technical/aws-hosting.md) |
+| D037 | 후속 확정: D038 | 서버 개발 언어는 Python보다 Java를 선호하며 기존 Django 추천안을 재검토 | 2026-11-26 사용자 발언. 기존 로컬 Django 프로토타입은 비교·이전 기준으로 보존하고 Java 전환 구현은 아직 하지 않음. Spring Boot는 AI 추천이며 버전·세부 구성은 미정 |
+| D038 | 확정 | 게임 API는 Java + Spring Boot로 개발하며 기존 Django 프로토타입을 전환 | 2026-11-26 사용자 동의. API 주소·저장 데이터 호환을 유지한다. 전환 자체가 게임 로직의 최종 클라이언트·서버 분담 확정을 의미하지 않는다. 버전은 [개발 환경](07-technical/development.md)에 기록 |
 
-프로토타입 환경 선택(AI): Godot 4.7.2·GDScript·Compatibility와 로컬 Django·PostgreSQL·Caddy를 사용한다. 임시 2D·압축 조작·수치·테스트 세션은 최종 게임 규칙이 아니다. [환경](07-technical/development.md)
+프로토타입 환경 선택(AI): Godot 4.7.2·GDScript·Compatibility와 Java/Spring Boot·PostgreSQL·Caddy를 사용한다(D038로 Django 대체). 임시 2D·압축 조작·수치·테스트 세션은 최종 게임 규칙이 아니다. [환경](07-technical/development.md)
 
 ## 추천안·미정
 
@@ -56,6 +59,6 @@
 - Google 연결 대상에 이미 진행 데이터가 있는 경우의 처리와 연결 후 복구 코드의 유효 범위는 미정.
 - 사용자가 ID·비밀번호 로그인을 끄는 기능은 추후 후보로 두며 현재 구현 범위에 포함하지 않는다.
 
-- 서버 추천안: Lightsail의 Caddy + Python/Django·REST Framework와 별도 EC2 DB. DB는 EC2 자체 관리 PostgreSQL 확정, 앱은 Docker Compose 관리 추천. API 프레임워크 등 나머지 기술 선택은 추천 상태다. [상세](07-technical/server-architecture.md)
+- 초기 구성: 시드니 Lightsail 한 대에 Caddy + Java API + PostgreSQL. Java + Spring Boot는 D038로 확정했다. 기존 Django의 API·저장 형식을 유지해 전환한다. 별도 EC2 DB는 D036으로 초기 범위에서 제외하며 DB 분리가 필요해지면 재검토한다. 앱·DB 실행 관리에는 Docker Compose를 제안한다. [상세](07-technical/server-architecture.md)
 
-- DB 인스턴스·스토리지 사양·리전·전체 호스팅 예산은 미정. Lightsail $7에 DB 요금이 포함되지 않는다.
+- 초기 리전은 시드니, 기본 서버 요금은 월 $7이다. 별도 DB 인스턴스는 만들지 않는다. 백업·초과 트래픽·도메인 등을 포함한 총비용과 서울 이전 시점은 미정이다.

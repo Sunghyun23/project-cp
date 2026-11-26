@@ -16,14 +16,14 @@ services:
   api:
     build: ./server
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?copy .env.example to .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JAVA_TOOL_OPTIONS: -Xms32m -Xmx160m -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=32m -XX:MaxDirectMemorySize=16m -Xss512k -XX:ActiveProcessorCount=2 -XX:+ExitOnOutOfMemoryError
+    mem_limit: 384m
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
-    command: ["sh", "-c", "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000 --noreload"]
   web:
     image: caddy:2.10.2-alpine
     ports:

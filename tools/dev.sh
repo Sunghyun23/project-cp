@@ -23,9 +23,7 @@ case "${1:-help}" in
         ;;
       check)
         "$godot_bin" --headless --path game --editor --import --quit
-        docker compose exec -T api python manage.py check
-        docker compose exec -T api python manage.py makemigrations --check --dry-run
-        docker compose exec -T api python manage.py test prototype -v 2
+        bash tools/test-server.sh
         ;;
     esac
     ;;

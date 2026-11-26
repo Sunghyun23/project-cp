@@ -1,6 +1,6 @@
-# 서버 아키텍처 추천안
+# 서버 아키텍처
 
-- 상태: 웹 서비스·AWS Lightsail $7 운영 대상 확정, 서버 소프트웨어 구성은 추천안
+- 상태: 웹 서비스·AWS Lightsail $7 운영 대상 확정, Java 프로토타입·초기 Docker 구성 구현 완료, 정식 인증 설계 미완료
 - 담당: AI, 기획자 검토
 - 관련 문서: [로그인](../03-systems/authentication.md), [개발 환경](development.md), [결정 기록](../decisions.md)
 
@@ -12,26 +12,28 @@ Android와 웹은 공통 계정·저장 API를 사용한다. 서버 호스팅 �
 
 운영 호스팅은 [AWS Lightsail $7 기준 설계](aws-hosting.md)를 따른다.
 
+## Java 전환
+
+사용자는 Java + Spring Boot를 선택했다(D038). Java 21·Spring Boot 4.2.0·Maven·JDBC·Flyway로 프로토타입 API를 옮겼다. 기존 API 주소·JSON·토큰·DB 테이블을 유지하고 데이터는 삭제하지 않는다. 정식 인증·게임 로직의 최종 책임 분담은 후속 설계다.
+
 ## 추천 구성
 
-앱 서버에는 Caddy + Python/Django·Django REST Framework를 Docker Compose로 관리한다. 운영 DB는 별도 EC2 인스턴스로 분리한다. 이전 단일 서버 DB 배치는 사용자 요청으로 대체했다.
-DB는 별도 EC2에 PostgreSQL을 직접 설치한다. 이전 RDS 선택은 대체되었다. EC2·EBS 사양은 미정이며 초기에는 단일 AZ·단일 DB 노드로 운영한다.
+초기에는 시드니 Lightsail 월 $7·1GB 한 대에 Caddy + Java/Spring Boot API와 PostgreSQL을 함께 배치한다. 이전 별도 EC2 DB 배치는 D036으로 초기 범위에서 대체했다. 실행 관리에는 Docker Compose를 제안한다. 최대 동시 접속 3명을 기준으로 실제 메모리·지연을 검증하고 증설·분리 필요성을 판단한다.
 API는 계정·인증·게임 저장 모듈을 나누되 하나의 애플리케이션으로 배포하는 모듈형 모놀리스로 구성한다.
 현재는 계정·진행 저장 중심의 HTTP API를 가정한다. 실시간 멀티플레이가 채택되면 별도로 평가한다.
 
 ```text
 브라우저 ── HTTPS ── Caddy ── /           Godot 웹 빌드
-                       └── /api/v1/  Django API ── 비공개 연결 ── 별도 EC2 PostgreSQL
+                       └── /api/v1/  Java API ── 내부 연결 ── 같은 서버 PostgreSQL
 Android 앱 ── HTTPS ─────── /api/v1/
 ```
 
 - Caddy: 게임 정적 파일 제공, API 전달, 인증서 자동 발급·갱신. 인증서 조건과 호스트 이름을 배포 시 확인한다.
-- Django + REST Framework: ID·비밀번호 인증 기반, Google 연결, 복구 코드, 게임 저장 API. Google 연동·복구 코드는 별도 구현·검증한다.
+- Java + Spring Boot: ID·비밀번호 인증, Google 연결, 복구 코드, 게임 저장 API를 구성한다. 인증·계정 연결과 복구 코드는 별도 설계·검증한다.
 - PostgreSQL: 계정·인증 연결·세션·진행 저장. 계정 연결·복구 코드 사용 등은 트랜잭션과 유일성 제약으로 보호한다.
 - Docker Compose: 로컬·서버의 실행 구성을 맞추고 버전을 고정한다. 고가용성이나 자동 복구를 보장하는 도구로 간주하지 않는다.
 
-Django의 인증·비밀번호 처리·관리자 화면·마이그레이션을 활용하여 직접 작성할 코드를 줄인다.
-관리자 화면은 운영자용으로만 사용하고 접근 제한을 둔다. 게임 클라이언트는 API만 사용한다.
+현재 DB 접근은 JDBC, 스키마 변경은 Flyway로 관리한다. 정식 인증 구현은 별도 설계한다. Django의 기본 관리자 화면에 해당하는 기능이 Java 전환 시 자동으로 생긴다고 가정하지 않는다. 관리자 도구의 필요 여부·범위는 미정이며 게임 클라이언트는 API만 사용한다.
 초기에는 별도 인증 서버, Redis, 작업 큐, Kubernetes, 마이크로서비스를 추가하지 않는다. 요구와 측정 결과가 생기면 재검토한다.
 
 ## 유지보수 원칙
@@ -60,17 +62,17 @@ DB를 외부에 직접 노출하지 않는다. 인증 비밀은 서버 환경에
 - 백업은 같은 서버 외부에도 보관해야 한다. 호스팅에 포함된 저장 공간이나 기존 소유 장비 등 추가 요금 없는 대상을 먼저 검토하며 실제 수단·주기·보존 기간은 미정이다.
 - 구조화 로그, 상태 확인, 디스크·백업 실패 점검부터 시작한다. 비밀 값은 기록하지 않고 로그 보존량을 제한한다.
 - 무료 공개 소프트웨어를 사용해도 서버 CPU·메모리·디스크·트래픽·백업 비용은 발생할 수 있으므로 호스팅 예산 안에서 확인한다. 도메인은 별도 비용이 생길 수 있어 제공되는 무료 호스트 이름 등 사용 가능 여부를 확인한다.
-- 앱 서버 장애 시 웹·API가 중단되지만 DB는 별도 EC2에 유지된다. DB 분리 자체가 무중단·고가용성을 보장하지 않으며 현재는 단일 EC2 DB 노드이므로 자동 장애 전환은 없다. DB 패치·백업·복구도 직접 관리한다. 공개 운영 전 가용성을 재검토한다.
+- 초기에는 웹·API·DB가 같은 서버에 있어 서버 장애 시 함께 중단된다. 자동 장애 전환은 없으며 DB 패치·백업·복구도 직접 관리한다. 공개 운영 전 가용성·DB 분리를 재검토한다.
 
 ## 검증 계획과 미정
 
 인증 실패·계정 연결·복구 코드 재사용·데이터 소유권을 자동 테스트하고, PostgreSQL에서 트랜잭션·동시 저장을 검증한다.
 실제 Android와 브라우저에서 로그인·재접속·진행 저장을 확인하고 웹 내보내기·배포·백업 복원도 검증한다.
-호스팅은 AWS Lightsail 1GB·월 $7 요금제를 기준으로 한다. 리전·배포 주소·트래픽·동시 사용자·정확한 도구 버전·성능 목표는 미정이다.
-로컬 프로토타입에 Django·REST Framework, PostgreSQL, Caddy, Docker Compose를 구성하고 진행 저장 API와 DB 통합 테스트를 실행했다. [구현 범위](prototype.md)를 참고한다. 정식 인증·AWS 구축·운영 배포·성능 테스트는 수행하지 않았다.
+호스팅은 AWS Lightsail 1GB·월 $7 요금제를 기준으로 한다. 초기 리전은 시드니이며 최대 동시 접속 3명으로 테스트한다. 배포 주소·트래픽·정확한 운영 도구 버전·성능 목표와 서울 이전 시점은 미정이다.
+로컬 프로토타입은 Django에서 Java/Spring Boot로 전환했고 PostgreSQL·Caddy·Docker Compose를 유지한다. API 통합 테스트 8개와 기존 데이터 호환을 검증했다. [구현 범위](prototype.md)를 참고한다. 시드니 Lightsail 인스턴스와 Docker는 구성했으며 앱 배포 결과는 [배포 기록](../../server/README.md)을 따른다. 정식 인증·공개 HTTPS·실사용 성능 목표 검증은 미완료다.
 
 ## 참고
 
-- [Django 인증](https://docs.djangoproject.com/en/stable/topics/auth/)
+- [Spring Boot](https://docs.spring.io/spring-boot/index.html)
 - [Caddy HTTPS](https://caddyserver.com/docs/automatic-https)
 - [Godot Web export](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html)

@@ -1,0 +1,36 @@
+(camping) {
+    handle /api/* {
+        request_body {
+            max_size 16KB
+        }
+        reverse_proxy api:8000
+    }
+    handle {
+        root * /srv
+        @packs path *.pck
+        header @packs Content-Type application/octet-stream
+        header Cache-Control "no-store"
+        encode gzip {
+            match {
+                header Content-Type application/octet-stream application/wasm application/javascript text/*
+            }
+        }
+        file_server {
+            precompressed gzip
+        }
+    }
+}
+
+http://:80 {
+    @local host localhost 127.0.0.1
+    handle @local {
+        import camping
+    }
+    handle {
+        redir https://{$CP_WEB_HOST}{uri} 308
+    }
+}
+
+{$CP_WEB_HOST} {
+    import camping
+}
