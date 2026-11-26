@@ -15,6 +15,8 @@
 | [templates](templates/system-spec.md) | 시스템 명세 작성 양식 |
 | [결정 기록](decisions.md) | 주요 결정과 변경 이유 |
 
+[기획 기반 에셋 목록](06-art-audio/asset-list.md)에서 제작할 자원과 보류 항목, 현재 프로토타입의 보유 상태를 확인한다.
+
 ## 작성 순서
 
 콘셉트 → MVP → 핵심 반복 구조 → 첫 플레이 흐름 → 시스템 → UX·에셋 → 완료 기준.
