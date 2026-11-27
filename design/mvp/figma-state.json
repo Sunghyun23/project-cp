@@ -1,0 +1,138 @@
+{
+  "fileKey": "4MPq9ATTlOklMdtxgWVZnj",
+  "url": "https://www.figma.com/design/4MPq9ATTlOklMdtxgWVZnj",
+  "status": "pixel_direction_review_wireframes_not_created",
+  "foundations": {
+    "file": "4MPq9ATTlOklMdtxgWVZnj",
+    "page": "0:1",
+    "boards": [
+      {
+        "id": "2:71",
+        "name": "CP / Foundations v0.1",
+        "width": 1240,
+        "height": 2028
+      }
+    ],
+    "pages": {
+      "components": "2:141",
+      "wireframes": "2:142"
+    },
+    "variables": {
+      "canvas": "VariableID:2:34",
+      "surface": "VariableID:2:35",
+      "overlay": "VariableID:2:36",
+      "text": "VariableID:2:37",
+      "muted": "VariableID:2:38",
+      "border": "VariableID:2:39",
+      "primary": "VariableID:2:40",
+      "onPrimary": "VariableID:2:41",
+      "accent": "VariableID:2:42",
+      "hover": "VariableID:2:43",
+      "pressed": "VariableID:2:44",
+      "danger": "VariableID:2:45",
+      "dangerSurface": "VariableID:2:46",
+      "warning": "VariableID:2:47",
+      "warningSurface": "VariableID:2:48",
+      "success": "VariableID:2:49",
+      "successSurface": "VariableID:2:50",
+      "disabled": "VariableID:2:51",
+      "focus": "VariableID:2:52",
+      "onOverlay": "VariableID:2:53",
+      "space4": "VariableID:2:54",
+      "space8": "VariableID:2:55",
+      "space12": "VariableID:2:56",
+      "space16": "VariableID:2:57",
+      "space24": "VariableID:2:58",
+      "space32": "VariableID:2:59",
+      "space48": "VariableID:2:60",
+      "radius4": "VariableID:2:61",
+      "radius8": "VariableID:2:62",
+      "radius12": "VariableID:2:63",
+      "touch": "VariableID:2:64"
+    },
+    "primitives": {
+      "forest": "VariableID:2:3",
+      "pine": "VariableID:2:4",
+      "moss": "VariableID:2:5",
+      "cream": "VariableID:2:6",
+      "paper": "VariableID:2:7",
+      "white": "VariableID:2:8",
+      "ink": "VariableID:2:9",
+      "muted": "VariableID:2:10",
+      "line": "VariableID:2:11",
+      "sand": "VariableID:2:12",
+      "hover": "VariableID:2:13",
+      "pressed": "VariableID:2:14",
+      "red": "VariableID:2:15",
+      "paleRed": "VariableID:2:16",
+      "amber": "VariableID:2:17",
+      "paleAmber": "VariableID:2:18",
+      "green": "VariableID:2:19",
+      "paleGreen": "VariableID:2:20",
+      "disabled": "VariableID:2:21",
+      "focus": "VariableID:2:22"
+    },
+    "collections": {
+      "primitives": "VariableCollectionId:2:2",
+      "semantic": "VariableCollectionId:2:33"
+    },
+    "styles": {
+      "display": "S:9b459195fc8503e747465784a615f08b00b009de,",
+      "title": "S:e7da403728e17d13645b216d34ad0413bf296d31,",
+      "heading": "S:b2f7651d53e923ea6c07401decf4053aca2122a9,",
+      "body": "S:09523c12c6a5daea70b60fb881f81ea5ce63a8ae,",
+      "label": "S:90be9f1bc790dde0255c5fc622769c3a4d22c851,",
+      "caption": "S:f0451b1d38b340ea96dff59961d4497b42210a7e,"
+    }
+  },
+  "components": {
+    "components": {
+      "Button": "5:2",
+      "GridCell": "5:27",
+      "Notice": "5:38",
+      "Timer": "5:51",
+      "ItemTile": "5:61",
+      "HudChip": "5:74",
+      "Panel": "5:81"
+    },
+    "variants": {
+      "Button": 12,
+      "GridCell": 5,
+      "Notice": 4,
+      "Timer": 3,
+      "ItemTile": 3,
+      "HudChip": 2,
+      "Panel": 1
+    },
+    "specimen": {
+      "id": "5:86",
+      "width": 1180,
+      "height": 1356
+    },
+    "nestedPanelButton": "5:84"
+  },
+  "pixel": {
+    "direction": {
+      "id": "8:73",
+      "width": 1180,
+      "height": 530
+    },
+    "icons": {
+      "Tent": "8:55",
+      "Pack": "8:61",
+      "Fire": "8:67",
+      "Coin": "8:72"
+    },
+    "pixelStyle": "S:596fcbedfc219c84076bf84b91054bd2c8a2a00f,",
+    "border": "VariableID:8:49",
+    "changedSets": [
+      "5:2",
+      "5:27",
+      "5:38",
+      "5:51",
+      "5:61",
+      "5:74",
+      "5:81"
+    ]
+  }
+}
