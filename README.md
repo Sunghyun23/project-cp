@@ -4,8 +4,11 @@ Android·웹용 캠핑 게임. 기획을 이어가며 Godot 로컬 프로토타�
 
 ## 확정된 방향
 
+- 핵심 재미: 돈을 벌어 아이템을 사고, 크고 화려한 캠핑장을 꾸미는 성장과 꾸미기. 배치 유지·확장 방식은 미정이다.
+
 - 플랫폼: Android + 웹. Godot 웹 빌드를 웹 서버에서 제공하고 공통 API를 사용한다.
 - Android 화면: 일반 스마트폰·폴더블 커버·내부 화면의 다양한 해상도와 화면 비율 지원. [세부 사양](docs/07-technical/android.md)
+- 입력 지원 요구: [터치·클릭·키보드·게임패드](docs/02-gameplay/controls.md). 터치·클릭은 목적지 이동, 키보드·패드는 직접 이동이며 웹·Android는 공통 UI를 사용한다. 구체 매핑과 전체 구현·검증은 후속 작업이다.
 - 프로토타입 환경: Godot 4.7.2, GDScript, Compatibility. 최종 표현 방식은 미정이다.
 - 구현: AI가 코드 작성과 프로젝트 구성을 담당한다. API 서버는 Java + Spring Boot를 사용한다.
 - 로그인: [Google 로그인 직접 연동 + Android·웹 게스트 플레이](docs/03-systems/authentication.md).
@@ -34,7 +37,7 @@ infra/          로컬 Caddy 설정
 tools/          설치·실행·검증 스크립트
 ```
 
-최종 2D/3D, 화면 방향, 핵심 재미와 전체 MVP는 아직 미정이다. 현재는 [한 주 흐름](docs/02-gameplay/session-flow.md)을 임시 2D 화면과 압축 조작으로 검증한다.
+최종 2D/3D, 화면 방향과 전체 MVP는 아직 미정이다. 현재는 [한 주 흐름](docs/02-gameplay/session-flow.md)을 임시 2D 화면과 압축 조작으로 검증한다.
 [픽셀 캠핑장·애니메이션](docs/06-art-audio/pixel-prototype.md)과 별도 웹 로그인 화면을 구현했다. 공개 웹에서 실제 Google 로그인 성공을 사용자가 확인했으며 Android 네이티브 연동은 별도 검증한다.
 실행은 [개발 환경](docs/07-technical/development.md), 구현 범위와 임시 가정은 [프로토타입 명세](docs/07-technical/prototype.md)를 참고한다.
 Figma는 UI·화면 흐름·아트 방향 설계에 활용할 수 있지만 모든 기능의 필수 선행 단계는 아니다.

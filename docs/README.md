@@ -15,6 +15,8 @@
 | [templates](templates/system-spec.md) | 시스템 명세 작성 양식 |
 | [결정 기록](decisions.md) | 주요 결정과 변경 이유 |
 
+[전체 유저 플로우 초안](05-ux/user-flow.md)에서 첫 진입·한 주 플레이·계정·중단 복귀의 사용자 여정을 검토한다.
+
 [기획 기반 에셋 목록](06-art-audio/asset-list.md)에서 제작할 자원과 보류 항목, 현재 프로토타입의 보유 상태를 확인한다.
 
 ## 작성 순서
