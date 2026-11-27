@@ -13,7 +13,6 @@ const FIRST_WEEK = preload("res://ui/screens/first_week.tscn")
 const CHARACTER_SELECT = preload("res://ui/screens/character_select.tscn")
 const CHARACTER_CATALOG = preload("res://ui/components/character_catalog.gd")
 const HUD = preload("res://scripts/camp_hud.gd")
-const LIGHTING_3D = preload("res://scripts/camp_lighting_3d.gd")
 const SAVE_PATH = "user://prototype_session.cfg"
 var session_save_path := SAVE_PATH
 const TITLES = {"work": "주말을 기다리는 평일", "shopping": "이번 저녁엔 뭘 먹을까?", "packing": "트렁크에 주말을 담아요", "setup": "나만의 작은 캠프", "free": "잠깐, 아무것도 하지 않기", "dinner": "밖에서 먹으면 더 맛있지", "night": "불 앞에서 보내는 밤", "breakfast": "느긋한 아침 한 입", "teardown": "머문 자리를 정리해요", "settlement": "잘 쉬었다. 다음 주에도!"}
@@ -40,22 +39,17 @@ var message := "서버에 연결하는 중이에요."
 var http: HTTPRequest
 var content: VBoxContainer
 var hud
-var lighting_3d
-var real_3d := false
 var real_shadows := true
 var actions: GridContainer
 var ground_fade: GradientTexture2D
 var camper_sprite: AnimatedSprite2D
 var scenery: TextureRect
 var scenery_material: ShaderMaterial
-var visual_time := 0.0
 var preview_mode := "auto"
 var camper_position := Vector2(0.60, 0.80)
 var camper_target := Vector2(0.60, 0.80)
 var facing_left := false
 var direct_movement := false
-var depth_enabled := true
-var camera_focus := Vector2.ZERO
 
 func _ready() -> void:
 	UI_INPUT.ensure()
@@ -97,10 +91,6 @@ func _ready() -> void:
 	camper_sprite.z_index = 3
 	add_child(camper_sprite)
 	camper_sprite.play("idle")
-	lighting_3d=LIGHTING_3D.new()
-	lighting_3d.z_index=-1
-	lighting_3d.visible=false
-	add_child(lighting_3d)
 	camp_world = CAMP_EDITOR.new()
 	camp_world.readonly = true
 	camp_world.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -119,10 +109,10 @@ func _ready() -> void:
 		if id<=2:
 			preview_mode=["auto","day","night"][id]
 		elif id==3:
-			real_3d=not real_3d
-			if real_3d:preview_mode="night"
+			camp_world.effects.enabled=not camp_world.effects.enabled
 		elif id==4:
 			real_shadows=not real_shadows
+			camp_world.effects.shadows=real_shadows
 		_render()
 	)
 	resized.connect(_layout)
@@ -163,18 +153,10 @@ func _layout() -> void:
 	if scenery==null:return
 	scenery.position=_scene_rect().position
 	scenery.size=_scene_rect().size
-	if lighting_3d!=null:
-		lighting_3d.position=Vector2.ZERO
-		lighting_3d.size=size
 	if hud!=null:hud.fit.call_deferred()
 	queue_redraw()
 
 func _process(delta: float) -> void:
-	visual_time += delta
-	var target_focus := Vector2.ZERO
-	if depth_enabled and _scene_rect().has_point(get_local_mouse_position()):
-		target_focus = (get_local_mouse_position() - _scene_rect().get_center()) / _scene_rect().size * 2.0
-	camera_focus = camera_focus.lerp(target_focus, minf(1.0, delta * 3.0))
 	var previous := camper_position
 	direct_movement = false
 	if state.get("phase", "") == "free":
@@ -201,6 +183,11 @@ func _gui_input(event: InputEvent) -> void:
 	if not pressed or not _scene_rect().has_point(event.position):
 		return
 	grab_focus()
+	if camp_world.visible:
+		var at=camp_world.ground_point(event.position,0)
+		if at!=null:
+			camper_target=Vector2(.47+clampf((at.x+camp_world.origin_x)/camp_world.site_width,0,1)*.19,.74+clampf((at.z+camp_world.origin_z)/camp_world.site_depth,0,1)*.18)
+		return
 	var source := _source_rect()
 	var uv: Vector2 = ((event.position - _scene_rect().position) / _scene_rect().size * source.size + source.position) / Vector2(DAY.get_size())
 	camper_target = Vector2(clampf(uv.x, 0.47, 0.66), clampf(uv.y, 0.74, 0.92))
@@ -209,18 +196,8 @@ func _draw() -> void:
 	if scenery == null:
 		return
 	var night := _is_night()
-	scenery.visible=not real_3d
-	lighting_3d.visible=real_3d
-	camper_sprite.visible=not real_3d
-	if real_3d:
-		lighting_3d.night=night
-		lighting_3d.shadows=real_shadows
-		return
 	scenery.texture = MVP_ASSETS.PINE if state.get("place", "") == "pine" else NIGHT if night else DAY
 	scenery.modulate = Color("7188ae") if night and state.get("place", "") == "pine" else Color.WHITE
-	scenery_material.set_shader_parameter("night", night)
-	scenery_material.set_shader_parameter("depth_enabled", depth_enabled)
-	scenery_material.set_shader_parameter("parallax", camera_focus)
 	var area := _scene_rect()
 	var source := _source_rect()
 	if area.end.y<size.y:
@@ -230,48 +207,21 @@ func _draw() -> void:
 	scenery_material.set_shader_parameter("source_scale", source.size / Vector2(DAY.get_size()))
 	var scale_factor := area.size.x / source.size.x
 	var walking := direct_movement or camper_position.distance_to(camper_target) > 0.001
-	var foot := _scene_point(camper_position) + camera_focus * Vector2(7, 3) * scale_factor
+	var foot := _scene_point(camper_position)
 	var sprite_height := Vector2(DAY.get_size()).y * 0.22 * scale_factor
 	var cell := Vector2(CAMPER_SHEET.get_size()) / Vector2(4, 2)
-	var shadow_offset := Vector2(3, 2) if depth_enabled else Vector2.ZERO
-	draw_set_transform(foot + shadow_offset, 0, Vector2(1, 0.25))
-	draw_circle(Vector2.ZERO, sprite_height * 0.21, Color(0.02, 0.05, 0.08, 0.30))
-	draw_set_transform(Vector2.ZERO)
-	camper_sprite.position = foot
-	camper_sprite.scale = Vector2.ONE * sprite_height / (cell.y * 0.9)
-	camper_sprite.flip_h = facing_left
-	camper_sprite.modulate = Color("ccd5ee") if night else Color.WHITE
-	if night and depth_enabled:
-		var warmth := clampf(1.0 - camper_position.distance_to(Vector2(0.738, 0.755)) * 4.0, 0.0, 1.0)
-		camper_sprite.modulate = camper_sprite.modulate.lerp(Color("ffe0b3"), warmth * 0.45)
+	var shared_3d: bool=camp_world!=null and camp_world.visible
+	camper_sprite.visible=not shared_3d
+	if shared_3d:
+		var world_foot:=Vector3(((camper_position.x-.47)/.19)*camp_world.site_width-camp_world.origin_x,0,((camper_position.y-.74)/.18)*camp_world.site_depth-camp_world.origin_z)
+		camp_world.update_camper(camper_sprite.sprite_frames,camp_world.screen_point(world_foot),walking,facing_left)
+		camp_world.effects.night=night
+	camper_sprite.position=foot
+	camper_sprite.scale=Vector2.ONE*sprite_height/(cell.y*.9)
+	camper_sprite.flip_h=facing_left
 	var animation := "walk" if walking else "idle"
 	if camper_sprite.animation != animation:
 		camper_sprite.play(animation)
-	if night:
-		var fire := _scene_point(Vector2(0.738, 0.735))
-		for i in range(9):
-			var life := fmod(visual_time * 0.45 + i * 0.13, 1.0)
-			var spark := fire + Vector2(sin(i * 4.0 + life * 5.0) * 18, -life * 100) * scale_factor
-			var spark_depth := 0.65 + (i % 3) * 0.4 if depth_enabled else 1.0
-			draw_rect(Rect2(spark, Vector2.ONE * maxf(2, scale_factor * 3 * spark_depth)), Color(1, 0.65, 0.24, (1.0 - life) / spark_depth))
-	if state.has("mvp_version") and state.get("phase", "") in ["setup","free","cooking","meal_ready","teardown"] and MVP_ASSETS.current_weather(state) == "rain":
-		for i in range(44):
-			var drop := Vector2(fmod(i*97.0+visual_time*18,area.size.x),fmod(i*53.0+visual_time*240,area.size.y))
-			draw_line(drop,drop+Vector2(-3,9),Color(.72,.83,.88,.42),1)
-	if depth_enabled:
-		_draw_atmosphere(area, scale_factor, night)
-
-func _draw_atmosphere(area: Rect2, scale_factor: float, night: bool) -> void:
-	# A few particles move at different depths; every effect stays inside the scenery.
-	for i in range(24):
-		var depth := 0.5 + (i % 3) * 0.55
-		var x := fmod(i * 107.0 + visual_time * 3.5 * depth, area.size.x)
-		var y := area.size.y * (0.38 + fmod(i * 0.173, 0.56)) + sin(visual_time * 0.6 + i) * 5
-		var point := area.position + Vector2(x, y) + camera_focus * depth * 3
-		var alpha := (0.09 + 0.08 * sin(visual_time + i)) if night else (0.13 + 0.06 * sin(visual_time * 0.7 + i))
-		var tint := Color(0.9, 0.84, 0.55, alpha) if night else Color(1, 0.96, 0.77, alpha)
-		if area.has_point(point):
-			draw_rect(Rect2(point, Vector2.ONE * maxf(1, depth * 2 * scale_factor)), tint)
 
 func _label(text_value: String, font_size: int = 15) -> void:
 	var label := Label.new()
@@ -380,6 +330,14 @@ func _render() -> void:
 				if OS.has_feature("web"): JavaScriptBridge.eval("window.location.assign('/?account=1')"))
 			add_child(mvp_screen)
 			mvp_screen.use_field_editor(camp_world)
+			mvp_screen.effects_toggled.connect(func(value: bool): camp_world.effects.enabled=value)
+			mvp_screen.night_preview_toggled.connect(func(value: bool):
+				preview_mode="night" if value else "day"
+				camp_world.effects.night=value
+				queue_redraw())
+		mvp_screen.effects_button.set_pressed_no_signal(camp_world.effects.enabled)
+		mvp_screen.night_button.set_pressed_no_signal(_is_night())
+		mvp_screen.night_button.text="밤" if _is_night() else "낮"
 		mvp_screen.apply_state(state, busy and not heartbeat_request, message if last_request_error else "", progress_check_required, busy)
 		queue_redraw()
 		return
@@ -388,7 +346,7 @@ func _render() -> void:
 		child.queue_free()
 	actions=null
 	hud.update_stats(state,message)
-	hud.set_view(real_3d,real_shadows)
+	hud.set_view(camp_world.effects.enabled,real_shadows)
 	if state.is_empty():
 		_label(message)
 		_button("서버 다시 연결", "reload")

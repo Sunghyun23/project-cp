@@ -8,6 +8,7 @@
 |---|---|
 | [user-flow.md](user-flow.md) | 실행·인증·한 주 플레이·계정·중단 복귀의 전체 사용자 여정과 UX 초안 |
 | [screen-flow.md](screen-flow.md) | 인트로·인증·첫 주·평일 결과·장보기의 화면·처리 상태·복귀 초안 |
+| [MVP 플레이 조작](screens/mvp-play-controls.md) | 풍경 감상·낮밤 미리보기·드래그 적재·테트리스형 점유·조기 출발/귀가 |
 | hud.md | 플레이 중 정보, 우선순위, 표시 조건 |
 | interactions.md | 선택·진행·성공·실패·취소 피드백 |
 | onboarding.md | 처음 익힐 행동과 안내 종료 조건 |

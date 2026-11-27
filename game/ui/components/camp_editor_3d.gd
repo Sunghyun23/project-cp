@@ -21,6 +21,9 @@ var press_point := Vector2.ZERO
 var grab_offset := Vector2.ZERO
 var moved_item := false
 const Assets = preload("res://ui/components/mvp_assets.gd")
+const Effects = preload("res://effects/camp_effects_3d.gd")
+var effects
+var camper_3d: AnimatedSprite3D
 const Catalog = preload("res://ui/components/character_catalog.gd")
 var viewport_3d: SubViewport
 var world: Node3D
@@ -105,7 +108,8 @@ func model(id: String, angle: int = 0) -> Node3D:
 	var sprite := Sprite3D.new()
 	sprite.texture = Assets.field_texture(id,angle)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sprite.shaded = false
+	sprite.shaded = true
+	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	node.set_meta("rotation_degrees",angle)
@@ -131,7 +135,11 @@ func model(id: String, angle: int = 0) -> Node3D:
 
 func _ready() -> void:
 	stretch = true
-	stretch_shrink = 2
+	var composite := CanvasItemMaterial.new()
+	composite.blend_mode = CanvasItemMaterial.BLEND_MODE_PREMULT_ALPHA
+	set_material(composite)
+	# 원래 화면 해상도로 그려 작은 스프라이트의 세부 픽셀을 보존한다.
+	stretch_shrink = 1
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_IGNORE if readonly else Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
@@ -205,6 +213,17 @@ func _ready() -> void:
 	world.add_child(footprint)
 	footprint_material = material("86d7a0")
 	footprint_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	camper_3d=AnimatedSprite3D.new()
+	camper_3d.sprite_frames=Catalog.frames("female")
+	camper_3d.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+	camper_3d.alpha_cut=SpriteBase3D.ALPHA_CUT_DISCARD
+	camper_3d.shaded=true
+	camper_3d.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	camper_3d.visible=false
+	world.add_child(camper_3d)
+	effects=Effects.new()
+	world.add_child(effects)
+	effects.initialize(camera,environment,sunlight,items_root,camper_3d)
 	resized.connect(func():
 		if dragging_item: end_drag(true)
 		if not state.is_empty(): configure(state,selected,proposed))
@@ -233,9 +252,13 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 	camera.look_at(Vector3.ZERO)
 	var projected_width := absf(cos(yaw))*site_width + absf(sin(yaw))*site_depth
 	var projected_height := (absf(sin(yaw))*site_width + absf(cos(yaw))*site_depth)*sin(elevation)
-	camera.size = maxf(projected_width/float(view.width_ratio),projected_height/maxf(.1,float(view.height_ratio)*size.y/maxf(1,size.x)))
+	# 예전의 화면 높이 30%짜리 배치 영역보다 현장을 크게 보여 준다.
+	# 지면 전체는 화면 안에 유지하며 서버의 배치 좌표/판정은 바꾸지 않는다.
+	var width_ratio := maxf(float(view.width_ratio),.96)
+	var height_ratio := maxf(float(view.height_ratio),.44)
+	camera.size = maxf(projected_width/width_ratio,projected_height/maxf(.1,height_ratio*size.y/maxf(1,size.x)))
 	camera.h_offset = camera.size*(.5-float(view.center[0]))
-	camera.v_offset = camera.size*size.y/maxf(1,size.x)*(float(view.center[1])-.5)
+	camera.v_offset = camera.size*size.y/maxf(1,size.x)*(minf(float(view.center[1]),.60)-.5)
 	var dimensions_key := JSON.stringify(site)
 	if grid_key != dimensions_key:
 		grid_key = dimensions_key
@@ -298,11 +321,24 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 	update_support_surfaces()
 	update_feedback()
 	gizmo.position = Vector3(proposed.x-origin_x,proposed.y+.1,proposed.z-origin_z)
-	var night := int(state.get("camp_minute",960))>=1080
-	environment.background_color = Color(0,0,0,0)
-	environment.ambient_light_energy = .25 if night else .35
-	sunlight.light_energy = .20 if night else .65
-	sunlight.light_color = Color("a5b9e0") if night else Color("fff0ce")
+	effects.configure(state,site_width,site_depth)
+	var sources: Dictionary={}
+	for item in items_root.get_children():
+		var item_id: String=item.get_child(1).get_meta("item")
+		if field.has(item_id): sources[item_id]=item.position
+	effects.update_sources(sources)
+
+func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, facing_left: bool) -> void:
+	var at=ground_point(screen_foot,0)
+	if at==null: return
+	camper_3d.visible=true
+	if camper_3d.sprite_frames!=frames: camper_3d.sprite_frames=frames
+	var animation_name: StringName=&"walk" if walking else &"idle"
+	if camper_3d.animation!=animation_name: camper_3d.play(animation_name)
+	var frame: Texture2D=frames.get_frame_texture(animation_name,0)
+	camper_3d.pixel_size=2.6/float(frame.get_height())
+	camper_3d.position=Vector3(at)+camera.global_basis.y*2.6*.44
+	camper_3d.flip_h=facing_left
 
 func to_engine_site(source: Dictionary) -> Dictionary:
 	if source.get("coordinate_system", "godot_y_up") != "z_up": return source
@@ -526,3 +562,7 @@ func _gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and active_pointer == -1:
 		move_drag(event.position)
 		accept_event()
+
+func _process(_delta: float) -> void:
+	if effects == null: return
+	effects.active = is_visible_in_tree() and (not bool(JavaScriptBridge.eval("document.hidden")) if OS.has_feature("web") else DisplayServer.window_is_focused())

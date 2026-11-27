@@ -2,12 +2,15 @@ extends Control
 
 signal action_requested(command: String, choice: String, extra: Dictionary)
 signal reload_requested
+signal effects_toggled(enabled: bool)
+signal night_preview_toggled(enabled: bool)
 signal account_requested
 const Assets = preload("res://ui/components/mvp_assets.gd")
 const Catalog = preload("res://ui/components/character_catalog.gd")
 const UiInput = preload("res://ui/ui_input.gd")
 const Editor3D = preload("res://ui/components/camp_editor_3d.gd")
 const Board = preload("res://ui/components/grid_board.gd")
+const PackingItem = preload("res://ui/components/packing_item.gd")
 const Paper = preload("res://ui/components/paper_panel.tscn")
 const Action = preload("res://ui/components/action_button.tscn")
 const Chip = preload("res://ui/components/hud_chip.tscn")
@@ -20,9 +23,15 @@ var check_required := false
 var signature := ""
 var selected_item := ""
 var item_rotated := false
+var packing_rotation := 0
 var field_rotation := 0
 var placement_controls: VBoxContainer
 var field_rotate: Button
+var effects_button: Button
+var night_button: Button
+var viewing_scenery := false
+var scenery_hint: Label
+var packing_confirm := false
 var show_forecast := false
 var elapsed := 0.0
 var toolbar: HBoxContainer
@@ -33,6 +42,7 @@ var money: PanelContainer
 var stamina: PanelContainer
 var dock: PanelContainer
 var scroll: ScrollContainer
+var packing_footer: VBoxContainer
 var content: VBoxContainer
 var status: PanelContainer
 var field_editor
@@ -98,6 +108,23 @@ func _ready() -> void:
 		render_body()
 		update_placement_visibility())
 	top.add_child(tools_button)
+	effects_button=Action.instantiate()
+	effects_button.text="효과"
+	effects_button.custom_minimum_size.x=64
+	effects_button.toggle_mode=true
+	effects_button.button_pressed=true
+	effects_button.tooltip_text="3D 광원·입자·그림자 켜기/끄기"
+	effects_button.toggled.connect(func(value: bool): effects_toggled.emit(value))
+	top.add_child(effects_button)
+	night_button=Action.instantiate()
+	night_button.text="낮"
+	night_button.custom_minimum_size.x=56
+	night_button.toggle_mode=true
+	night_button.tooltip_text="낮/밤 미리보기 전환 · 게임 시간은 유지해요"
+	night_button.toggled.connect(func(value: bool):
+		night_button.text="밤" if value else "낮"
+		night_preview_toggled.emit(value))
+	top.add_child(night_button)
 	if OS.has_feature("web"):
 		var account := Action.instantiate()
 		account.custom_minimum_size.x = 64
@@ -125,7 +152,13 @@ func _ready() -> void:
 	add_child(dock)
 	scroll = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	dock.add_child(scroll)
+	var dock_layout:=VBoxContainer.new()
+	dock.add_child(dock_layout)
+	scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	dock_layout.add_child(scroll)
+	packing_footer=VBoxContainer.new()
+	packing_footer.visible=false
+	dock_layout.add_child(packing_footer)
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 12)
@@ -161,6 +194,15 @@ func _ready() -> void:
 	placement_done.pressed.connect(func(): act("setup_done"))
 	placement_controls.add_child(placement_done)
 	placement_done.custom_minimum_size = Vector2(144,56)
+	scenery_hint=label("터치 · Esc · 패드 B로 복귀")
+	scenery_hint.add_theme_color_override("font_color",Color("fff7df"))
+	scenery_hint.add_theme_color_override("font_shadow_color",Color("213428"))
+	scenery_hint.add_theme_constant_override("shadow_offset_x",2)
+	scenery_hint.add_theme_constant_override("shadow_offset_y",2)
+	scenery_hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	scenery_hint.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	scenery_hint.visible=false
+	add_child(scenery_hint)
 	update_placement_visibility()
 	resized.connect(fit)
 	content.minimum_size_changed.connect(func(): fit.call_deferred())
@@ -195,7 +237,7 @@ func button(parent: Node, caption: String, command: String, choice: String = "",
 	action_buttons.append(node)
 	if primary:
 		node.theme_type_variation = "PrimaryButton"
-	node.pressed.connect(func(): act(command, choice))
+	if not command.is_empty(): node.pressed.connect(func(): act(command, choice))
 	parent.add_child(node)
 	return node
 
@@ -206,10 +248,18 @@ func note(text: String, severity: int = 0) -> void:
 	content.add_child(node)
 
 func apply_state(value: Dictionary, saving: bool, message: String, must_check: bool, request_busy: bool) -> void:
+	if value.get("phase", "") != state.get("phase", ""):
+		packing_confirm=false
+	if value.get("phase", "") != "free" or must_check or not message.is_empty():
+		viewing_scenery=false
 	if state.get("phase", "") != "setup" and value.get("phase", "") == "setup":
 		field_initialized_for = ""
 		tools_hidden = true
 	state = value
+	var packing_now:=phase() in ["packing","return_pack"]
+	title.visible=not packing_now
+	money.visible=not packing_now
+	stamina.visible=not packing_now
 	tools_button.visible = phase() == "setup"
 	if must_check: tools_hidden = false
 	update_placement_visibility()
@@ -234,7 +284,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	elif camp:
 		var minute := int(state.get("camp_minute", 960))
 		info.text += " · %02d:%02d" % [(minute / 60) % 24, minute % 60]
-	var structural := [phase(), state.get("owned"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() == "setup" else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("lost"), show_forecast, check_required]
+	var structural := [phase(), state.get("owned"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() in ["setup","packing","return_pack"] else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("lost"), show_forecast, check_required]
 	var next_signature := JSON.stringify(structural)
 	if signature != next_signature:
 		signature = next_signature
@@ -268,6 +318,11 @@ func render_body() -> void:
 	for child in content.get_children():
 		content.remove_child(child)
 		child.queue_free()
+	for child in packing_footer.get_children():
+		packing_footer.remove_child(child)
+		child.queue_free()
+	packing_footer.visible=phase() in ["packing","return_pack"] and not check_required and not show_forecast
+	content.add_theme_constant_override("separation",8 if phase() in ["packing","return_pack"] else 12)
 	board = null
 	field_coordinates.clear()
 	action_buttons.clear()
@@ -352,7 +407,7 @@ func render_body() -> void:
 				note("지금 날씨에 옷이 맞지 않아 체력이 더 빨리 줄어요.", 1)
 			if int(state.stamina) <= 20:
 				note("체력이 얼마 남지 않았어요. 먹거나 쉬고, 토요일에는 잠을 자요.", 1)
-			content.add_child(label("가져온 장비로 캠프를 꾸미고, 잠시 쉬어가요."))
+			content.add_child(label("캠프에서 잠시 쉬어가요."))
 			var activities := GridContainer.new()
 			activities.columns = 2
 			activities.add_theme_constant_override("h_separation", 8)
@@ -363,7 +418,8 @@ func render_body() -> void:
 			button(activities, "식사 준비" if state.get("cooked",false) else "라면 끓이기", "cook_begin", "", can_cook)
 			if not can_cook and state.meal_owned:
 				content.add_child(label("요리하려면 재료를 싣고 버너를 설치해야 해요."))
-			button(activities, "풍경 감상", "rest", "", not state.rested)
+			var admire := button(activities, "풍경 감상", "", "")
+			admire.pressed.connect(begin_scenery)
 			if int(state.camp_day) == 0:
 				button(activities, "잠들기  →", "sleep", "", true, true)
 			else:
@@ -398,8 +454,11 @@ func render_body() -> void:
 				note("가져간 물건을 모두 챙겨 돌아왔어요.")
 			button(content, "저장하고 다음 주 시작  →", "next_week", "", true, true)
 	if restore_grid_focus and board != null:
-		board.grab_focus.call_deferred()
+		restore_board_focus.call_deferred()
 	fit.call_deferred()
+
+func restore_board_focus() -> void:
+	if is_instance_valid(board) and board.is_inside_tree(): board.grab_focus()
 
 func use_field_editor(editor) -> void:
 	field_editor = editor
@@ -439,11 +498,31 @@ func use_field_editor(editor) -> void:
 func update_placement_visibility() -> void:
 	if dock == null or placement_bar == null: return
 	var placing := phase() == "setup"
-	dock.visible = not placing or not tools_hidden or show_forecast
+	dock.visible = (not placing or not tools_hidden or show_forecast) and not viewing_scenery
+	if scenery_hint != null: scenery_hint.visible=viewing_scenery
 	placement_bar.visible = placing and tools_hidden and not show_forecast
 	placement_controls.visible = placement_bar.visible
 	placement_done.visible = placement_bar.visible
 	tools_button.text = "장비" if tools_hidden else "닫기"
+
+func begin_scenery() -> void:
+	if locked or phase() != "free": return
+	show_forecast=false
+	viewing_scenery=true
+	update_placement_visibility()
+	if not state.get("rested",false): act("rest")
+
+func _input(event: InputEvent) -> void:
+	if not viewing_scenery: return
+	var pointer: bool = (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed)
+	# 감상 중에도 상단 낮/밤·효과 버튼은 바로 사용할 수 있다.
+	if pointer and header.get_global_rect().has_point(event.position): return
+	var key: bool = event is InputEventKey and event.pressed and event.keycode in [KEY_ESCAPE,KEY_ENTER,KEY_SPACE,KEY_BACK]
+	var pad: bool = event is InputEventJoypadButton and event.pressed and event.button_index in [JOY_BUTTON_A,JOY_BUTTON_B]
+	if pointer or key or pad:
+		viewing_scenery=false
+		update_placement_visibility()
+		get_viewport().set_input_as_handled()
 
 func update_placement_caption() -> void:
 	if phase() != "setup" or field_editor == null: return
@@ -524,51 +603,98 @@ func build_grid() -> void:
 	if not selected_item in selected_ids:
 		selected_item = selected_ids[0] if not selected_ids.is_empty() else ""
 	if returning:
-		note("시간 안에 싣지 못한 물건은 잃어버리고 회수할 수 없어요. 한 번만 진행해요.", 1)
+		content.add_child(label("미적재품은 잃어버려요."))
 	elif field:
 		content.add_child(label("원하는 장비만 놓아요. 물건을 고르고 격자의 시작 칸을 눌러요."))
 		if not state.get("packing_result", []).is_empty():
 			content.add_child(label("집에 보관한 물건: " + names(state.packing_result)))
 	else:
-		note("못 실은 물건은 집에 보관해요. 시간 종료 후 자동 출발해요.")
+		content.add_child(label("미적재품은 집에 남아요."))
 	if not field and not state.pack_started:
 		button(content, "45초 짐 싸기 시작", "start_pack", "", true, true)
 	var controls := HBoxContainer.new()
 	content.add_child(controls)
-	var choices := OptionButton.new()
-	choices.custom_minimum_size.y = 48
-	choices.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for id in selected_ids:
-		choices.add_item(item_name(id))
-	if not selected_item.is_empty():
-		choices.select(selected_ids.find(selected_item))
-	choices.item_selected.connect(func(index: int):
-		selected_item = selected_ids[index]
-		update_grid())
-	controls.add_child(choices)
+	var selected_label:=label("선택: "+item_name(selected_item))
+	selected_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	controls.add_child(selected_label)
 	var rotate := Action.instantiate()
 	rotate.custom_minimum_size.x = 80
 	rotate.text = "회전 ↻"
-	rotate.pressed.connect(func(): item_rotated = not item_rotated; update_grid())
+	rotate.pressed.connect(rotate_packing_item)
 	controls.add_child(rotate)
+	var tray:=preload("res://ui/components/packing_tray.gd").new()
+	tray.add_theme_constant_override("h_separation",6)
+	tray.add_theme_constant_override("v_separation",6)
+	tray.packed_ids=state.cargo.keys()
+	tray.interactive=not locked and state.get("pack_started",false)
+	tray.item_unpacked.connect(func(id: String): act("remove_item",id))
+	content.add_child(tray)
+	for id in selected_ids:
+		var card:=PackingItem.new()
+		card.item_id=id
+		card.item_rotated=state.cargo.get(id,{}).get("rotated",false)
+		card.packing_angle=Board.angle_of(state.cargo.get(id,{}))
+		card.can_drag=state.get("pack_started",false)
+		card.caption=item_name(id)
+		card.packed=state.cargo.has(id)
+		card.tooltip_text=item_name(id)+(" · 적재됨, 끌어서 옮기거나 빼세요" if card.packed else " · 끌어서 적재하세요")
+		for item in state.item_catalog:
+			if item.id==id: card.footprint_cells=item.cells
+		card.custom_minimum_size=Vector2(76,104)
+		card.disabled=locked
+		action_buttons.append(card)
+		card.pressed.connect(func():
+			selected_item=card.item_id
+			item_rotated=card.item_rotated
+			packing_rotation=card.packing_angle
+			selected_label.text="선택: "+item_name(selected_item)
+			update_grid()
+			if board != null: board.grab_focus())
+		tray.add_child(card)
 	var viewport := ScrollContainer.new()
 	viewport.custom_minimum_size.y = (6 if field else 5) * 48 + 14
 	viewport.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_child(viewport)
 	board = Board.new()
 	board.cursor = last_cursor
-	board.cell_activated.connect(func(x: int, y: int): act("place_item", selected_item, {"x":x, "y":y, "rotated":item_rotated}))
-	board.rotate_requested.connect(func(): item_rotated = not item_rotated; update_grid())
+	board.cell_activated.connect(func(x: int, y: int): act("place_item", selected_item, {"x":x, "y":y, "rotated":item_rotated,"rotation_degrees":packing_rotation}))
+	board.item_selected.connect(func(id: String):
+		selected_item=id
+		item_rotated=state.cargo.get(id,{}).get("rotated",false)
+		packing_rotation=Board.angle_of(state.cargo.get(id,{}))
+		selected_label.text="선택: "+item_name(id))
+	board.item_dropped.connect(func(id: String,x: int,y: int,rotation: int):
+		selected_item=id
+		packing_rotation=rotation
+		item_rotated=rotation%180!=0
+		act("place_item",id,{"x":x,"y":y,"rotated":item_rotated,"rotation_degrees":rotation}))
+	board.rotate_requested.connect(rotate_packing_item)
 	viewport.add_child(board)
 	update_grid()
-	content.add_child(label("칸을 눌러 배치 · 회전 버튼 / R / 패드 Y\n넓은 자리는 가로·세로로 밀어 확인해요."))
+	board.tooltip_text="그림을 끌어 싣기 · 목록으로 빼기 · R / 패드 Y 회전"
 	var remove := Action.instantiate()
-	remove.text = "선택한 물건 빼기"
+	remove.text = "빼기"
+	remove.custom_minimum_size.x=64
 	remove.disabled = locked or selected_item.is_empty()
 	remove.pressed.connect(func(): act("remove_item", selected_item))
-	content.add_child(remove)
+	controls.add_child(remove)
 	if field:
 		button(content, "이대로 캠핑 즐기기  →", "setup_done", "", true, true)
+	elif state.get("pack_started",false):
+		var missed:=selected_ids.filter(func(id): return not state.cargo.has(id))
+		if returning and packing_confirm and not missed.is_empty():
+			packing_footer.add_child(label("잃어버릴 물건: "+names(missed)))
+			var cancel:=button(packing_footer,"계속 짐싸기","")
+			cancel.pressed.connect(func(): packing_confirm=false; render_body())
+			var confirm:=button(packing_footer,"남겨두고 귀가하기", "", "", true, true)
+			confirm.pressed.connect(func(): act("finish_pack","",{"confirm_loss":true}))
+		else:
+			var finish:=button(packing_footer,"귀가하기  →" if returning else "출발하기  →", "", "", true, true)
+			finish.pressed.connect(func():
+				if returning and not missed.is_empty():
+					packing_confirm=true
+					render_body()
+				else: act("finish_pack"))
 
 func update_grid() -> void:
 	if board == null:
@@ -576,7 +702,24 @@ func update_grid() -> void:
 	var field := phase() == "setup"
 	var pine: bool = state.get("place", "") == "pine"
 	board.configure((10 if pine else 8) if field else 6, (7 if pine else 6) if field else 5, state.item_catalog, state.field if field else state.cargo, selected_item, item_rotated, field and pine)
+	board.packing_angle=packing_rotation
 	board.interactive = not locked and (field or state.get("pack_started", false))
+
+func rotate_packing_item() -> void:
+	if locked: return
+	packing_rotation=(packing_rotation+90)%360
+	item_rotated=packing_rotation%180!=0
+	if get_viewport().gui_is_dragging():
+		var drag_data: Variant=get_viewport().gui_get_drag_data()
+		if drag_data is Dictionary and drag_data.get("packing_item","")==selected_item:
+			drag_data.rotation_degrees=packing_rotation
+			drag_data.rotated=item_rotated
+	for card in action_buttons:
+		if is_instance_valid(card) and card is PackingItem and card.item_id==selected_item:
+			card.item_rotated=item_rotated
+			card.packing_angle=packing_rotation
+			card.queue_redraw()
+	update_grid()
 
 func fit() -> void:
 	if dock == null:
@@ -597,10 +740,13 @@ func fit() -> void:
 	update_placement_action_position()
 	header.position = Vector2(margin, margin)
 	header.size = Vector2(size.x - margin * 2, 0)
+	if scenery_hint != null:
+		scenery_hint.position=Vector2(margin,size.y-48)
+		scenery_hint.size=Vector2(size.x-margin*2,40)
 	var width := minf(700, size.x - margin * 2)
 	dock.custom_minimum_size.x = width
 	var available := maxf(160, size.y - header.position.y - header.size.y - margin * 2 - 16)
-	var desired := content.get_combined_minimum_size().y + 40
+	var desired: float = content.get_combined_minimum_size().y + (packing_footer.get_combined_minimum_size().y+8 if packing_footer.visible else 0) + 40
 	dock.size = Vector2(width, minf(available, maxf(120, desired)))
 	dock.position = Vector2(floorf((size.x - width) / 2), size.y - dock.size.y - margin)
 

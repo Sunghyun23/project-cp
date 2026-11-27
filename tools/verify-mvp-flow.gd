@@ -64,8 +64,8 @@ func run() -> void:
 	await act("start_pack")
 	for row in [["tent",0,0],["table",0,2],["stove",3,0],["chair",3,1],["lantern",5,0],["meal",5,4]]:
 		await act("place_item",row[0],{"x":row[1],"y":row[2],"rotated":false})
-	await expire()
-	require(game.state.phase == "setup","출발 자동 전환")
+	await act("finish_pack")
+	require(game.state.phase == "setup" and int(game.state.pack_remaining_ms)>0,"시간 전 직접 출발")
 	for row in [["tent",1.5,0,1.0],["table",4.75,0,3.5],["stove",4.5,.9,3.5],["lantern",5.5,.9,3.5],["chair",2.0,0,4.0]]:
 		await act("place_item",row[0],{"x":row[1],"y":row[2],"z":row[3],"rotated":false})
 	require(float(game.state.field.stove.y)==.9,"3D 테이블 위 배치 저장")
@@ -83,6 +83,13 @@ func run() -> void:
 	await idle()
 	require(int(game.version)>before_drag and is_equal_approx(float(game.state.field.lantern.z),3.75),"아이템 직접 드래그 HTTP 저장")
 	await act("setup_done")
+	var saved_minute:=int(game.state.camp_minute)
+	game.mvp_screen.night_button.button_pressed=true
+	await process_frame
+	require(game._is_night() and game.camp_world.effects.night,"밤 버튼 배경/조명 전환")
+	game.mvp_screen.night_button.button_pressed=false
+	await process_frame
+	require(not game._is_night() and not game.camp_world.effects.night and int(game.state.camp_minute)==saved_minute,"낮 복귀와 게임 시간 보존")
 	game.grab_focus()
 	var original_position: Vector2 = game.camper_position
 	var move := InputEventKey.new()
@@ -109,7 +116,7 @@ func run() -> void:
 	await act("start_pack")
 	for row in [["tent",0,0],["table",0,2],["stove",3,0],["lantern",5,0]]:
 		await act("place_item",row[0],{"x":row[1],"y":row[2],"rotated":false})
-	await expire()
+	await act("finish_pack","",{"confirm_loss":true})
 	require(game.state.phase == "settlement" and "chair" in game.state.lost,"귀가 미적재 의자 손실")
 	require(not "chair" in game.state.owned,"손실 실제 반영")
 	await act("next_week")
