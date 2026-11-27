@@ -301,6 +301,10 @@ func _render() -> void:
 				work_screen.outcome = ""
 				_send("actions/", {"command": "work", "choice": "", "version": version}))
 			work_screen.reload_requested.connect(_load_state)
+			work_screen.office_action_requested.connect(func(command: String,choice: String,extra: Dictionary):
+				var payload:=extra.duplicate()
+				payload.merge({"command":command,"choice":choice,"version":version},true)
+				_send("actions/",payload))
 			work_screen.account_requested.connect(func():
 				if OS.has_feature("web"):
 					JavaScriptBridge.eval("window.location.assign('/?account=1')"))
@@ -419,7 +423,7 @@ func _send(endpoint: String, body: Variant = null) -> void:
 	if not heartbeat_request:
 		last_request_error = false
 	request_kind = endpoint
-	working_request = endpoint == "actions/" and body is Dictionary and body.get("command", "") == "work"
+	working_request = endpoint == "actions/" and body is Dictionary and body.get("command", "") in ["work","office_finish"]
 	selecting_character_request = endpoint == "actions/" and body is Dictionary and body.get("command", "") == "select_character"
 	if not heartbeat_request:
 		message = "진행을 저장하고 있어요…" if endpoint == "actions/" else "서버에 연결하고 있어요…"

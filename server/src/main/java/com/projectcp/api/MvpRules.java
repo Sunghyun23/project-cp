@@ -223,9 +223,17 @@ final class MvpRules {
         if(command.equals("tick")){tick(s,body);return s;}
         if(phase.equals("character")&&command.equals("select_character")) {
             need(Set.of("male","female").contains(choice),"캐릭터를 선택해 주세요.");s.put("character_id",choice);s.put("phase","work");
+        } else if(phase.equals("work")&&command.equals("office_start")) {
+            DocumentWork.start(s);
+        } else if(phase.equals("work")&&command.equals("office_pause")) {
+            DocumentWork.task(s).put("active",false);
+        } else if(phase.equals("work")&&command.equals("office_review")) {
+            DocumentWork.review(s,choice,body);
+        } else if(phase.equals("work")&&command.equals("office_finish")) {
+            need(n(DocumentWork.task(s),"index")==DocumentWork.TOTAL,"서류 검토를 먼저 마쳐 주세요.");
+            finishWork(s);
         } else if(phase.equals("work")&&command.equals("work")) {
-            add(s,"money",10);add(s,"week_income",10);s.put("stamina",Math.max(0,n(s,"stamina")-6));add(s,"day",1);
-            if(n(s,"day")==5)s.put("phase","place");
+            finishWork(s);
         } else if(phase.equals("place")&&command.equals("choose_place")) {
             need(Set.of("lake","pine").contains(choice),"장소를 골라 주세요.");charge(s,choice.equals("lake")?15:30);s.put("place",choice);s.put("phase","equipment");
         } else if(phase.equals("equipment")&&command.equals("buy_item")) {
@@ -281,5 +289,11 @@ final class MvpRules {
             s.put("week_start_money",s.get("money"));s.put("week_income",0);s.put("week_spent",0);
         } else throw new IllegalArgumentException("현재 단계에서 할 수 없는 행동이에요.");
         return s;
+    }
+
+    static void finishWork(Map<String,Object> s) {
+        add(s,"money",10);add(s,"week_income",10);s.put("stamina",Math.max(0,n(s,"stamina")-6));add(s,"day",1);
+        s.remove("office_task");s.remove("office_case");s.remove("office_total");
+        if(n(s,"day")==5)s.put("phase","place");
     }
 }

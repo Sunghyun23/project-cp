@@ -3,6 +3,7 @@ extends Control
 signal work_requested
 signal reload_requested
 signal account_requested
+signal office_action_requested(command: String, choice: String, extra: Dictionary)
 
 const UiInput = preload("res://ui/ui_input.gd")
 const ROOM = preload("res://assets/pixel/workroom-day.png")
@@ -30,6 +31,8 @@ var snapshot: Dictionary = {}
 var displayed_character := ""
 var outcome := ""
 var pending := false
+var office_button: Button
+var office_screen
 
 func label(value: String, font_size: int = 16, floating: bool = false) -> Label:
 	var item := Label.new()
@@ -116,15 +119,29 @@ func _ready() -> void:
 		if not pending:
 			work_requested.emit())
 	column.add_child(work_button)
+	office_button=Action.instantiate()
+	office_button.theme_type_variation="PrimaryButton"
+	office_button.text="서류 검토 업무 시작"
+	office_button.pressed.connect(func():
+		if not pending: office_action_requested.emit("office_start","",{}))
+	column.add_child(office_button)
+	column.move_child(office_button,work_button.get_index())
+	work_button.theme_type_variation=""
 	reload_button = Action.instantiate()
 	reload_button.text = "저장 상태 다시 확인"
 	reload_button.visible = false
 	reload_button.pressed.connect(func(): reload_requested.emit())
 	column.add_child(reload_button)
+	office_screen=preload("res://ui/screens/document_work.gd").new()
+	office_screen.z_index=30
+	add_child(office_screen)
+	office_screen.visible=false
+	office_screen.action_requested.connect(func(command,choice,extra): office_action_requested.emit(command,choice,extra))
+	office_screen.reload_requested.connect(func(): reload_requested.emit())
 	resized.connect(fit)
 	dock.minimum_size_changed.connect(func(): fit.call_deferred())
 	fit()
-	work_button.grab_focus.call_deferred()
+	focus_initial.call_deferred()
 	if "--capture-work" in OS.get_cmdline_user_args():
 		capture.call_deferred()
 
@@ -139,20 +156,37 @@ func apply_state(value: Dictionary, saving: bool, message: String, check_require
 		avatar.sprite_frames = Catalog.frames(id)
 		avatar.play("idle")
 		displayed_character = id
-	guide.text = "버튼을 눌러 일을 마쳐요.\n수입으로 캠핑을 준비해요." if int(value.get("week", 1)) == 1 and int(value.get("day", 0)) == 0 else "오늘도 조금씩, 주말을 준비해요."
+	guide.text = "서류를 검토해 캠핑 비용을 모아요.\n간단 업무로 바로 마칠 수도 있어요."
 	result_label.text = outcome
 	result_label.visible = not outcome.is_empty()
 	notice.visible = saving or check_required
 	notice.severity = 1 if check_required else 0
 	notice.message = message
 	work_button.disabled = pending
-	work_button.text = "저장 중…" if saving else "오늘 일 마치기  →"
+	work_button.text = "저장 중…" if saving else "간단 업무로 마치기  →"
+	office_button.disabled=pending
+	office_button.text="서류 검토 이어하기" if value.has("office_task") else "서류 검토 업무 시작"
+	var was_open: bool=office_screen.visible
+	office_screen.visible=bool(value.get("office_task",{}).get("active",false))
+	for button in [work_button,office_button,reload_button,account_button]:
+		button.focus_mode=Control.FOCUS_NONE if office_screen.visible else Control.FOCUS_ALL
+	if office_screen.visible:
+		office_screen.apply_state(value,saving,message,check_required)
+		if not was_open: office_screen.focus_action.call_deferred()
+	elif was_open:
+		office_button.grab_focus.call_deferred()
 	reload_button.visible = check_required
 	reload_button.disabled = saving
 	account_button.disabled = saving
 	fit.call_deferred()
 
+func focus_initial() -> void:
+	if office_screen.visible: office_screen.focus_action()
+	else: work_button.grab_focus()
+
 func show_result(before: Dictionary, after: Dictionary) -> void:
+	office_screen.visible=false
+	office_button.disabled=true
 	var day: String = ["월", "화", "수", "목", "금"][clampi(int(before.get("day", 0)), 0, 4)]
 	var earned := int(after.get("money", 0)) - int(before.get("money", 0))
 	var spent := int(before.get("stamina", 0)) - int(after.get("stamina", 0))

@@ -30,6 +30,8 @@ func act(command: String, choice: String = "", extra: Dictionary = {}) -> void:
 		game.mvp_screen.action_requested.emit(command,choice,extra)
 	elif command == "work":
 		game.work_screen.work_requested.emit()
+	elif command.begins_with("office_"):
+		game.work_screen.office_action_requested.emit(command,choice,extra)
 	elif command == "select_character":
 		game.character_screen.cards[0].button_pressed = true
 		game.character_screen.confirm_button.pressed.emit()
@@ -53,7 +55,27 @@ func run() -> void:
 	await idle()
 	require(game.state.has("mvp_version"),"새 MVP 세션 필요")
 	await act("select_character","male")
-	for i in range(5): await act("work")
+	await act("office_start")
+	var starting_money:=int(game.state.money)
+	var paper: Dictionary=game.state.office_case
+	var right_choice: String="approve" if paper.order==paper.invoice else "revise"
+	await act("office_review","revise" if right_choice=="approve" else "approve",{"case_id":paper.id})
+	require(int(game.state.office_task.index)==0 and int(game.state.money)==starting_money,"서류 오답 재시도·급여 미지급")
+	for i in range(6):
+		paper=game.state.office_case
+		await act("office_review","approve" if paper.order==paper.invoice else "revise",{"case_id":paper.id})
+		if i==1:
+			await act("office_pause")
+			game.queue_free();await process_frame
+			game=Main.instantiate();game.session_save_path=session_file
+			game.base_url=OS.get_environment("CP_VERIFY_API_URL") if not OS.get_environment("CP_VERIFY_API_URL").is_empty() else "http://127.0.0.1:8000/api/v1/prototype/"
+			root.add_child(game);await idle()
+			require(int(game.state.office_task.index)==2,"서류 진행 재접속 복원")
+			await act("office_start")
+	await act("office_finish")
+	require(int(game.state.day)==1 and int(game.state.money)==starting_money+10,"서류 업무 급여·다음 날 연결")
+	print("PASS office API: wrong retry / six cases / resume / salary / next day")
+	for i in range(4): await act("work")
 	require(game.state.phase == "place","장소 선택 진입")
 	await act("choose_place","lake")
 	for id in ["chair","table","lantern"]: await act("buy_item",id)

@@ -21,6 +21,7 @@
 | SC-AUTH / SC-PLAY-RESUME | 인증하고 저장 진행으로 복귀 | 기존 ID·기존 구현 재사용 검토 |
 | SC-CHARACTER-SELECT | 첫 시작 캐릭터 선택 | 기존 ID·[로컬 구현/검증](screens/character-select.md), 실기기 대기 |
 | SC-FIRST-WEEK | 첫 업무로 수입 획득 | 기존 ID·[단순 수입 UI 로컬 구현/검증](screens/first-week.md), 실기기 대기 |
+| SC-OFFICE-DOCUMENT | 서류를 대조해 결재/보완 요청 판단 | [전체 화면 업무](screens/document-work.md), D153으로 MVP 추가 |
 | SC-MVP-PLACE | 풍경·자리 크기·비용을 비교해 선택 | 로컬 구현·상세 달력 예약 제외 |
 | SC-ITEM-SHOP / SC-SHOP-MENU / SC-SHOP-REVIEW | 장비·음식 구매 | 로컬 구현·MVP 소수 품목 |
 | SC-FORECAST / SC-CLOTHING | 날짜별 예보 확인·옷 선택 | 로컬 구현·준비 화면/상시 예보 |

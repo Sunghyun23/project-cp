@@ -44,6 +44,45 @@ class MvpApiTest {
             if(food)act("buy_meal");act("set_clothes","rain");act("prepare_done");act("start_pack");
         }
     }
+    @SuppressWarnings("unchecked") String officeAnswer(Player p) {
+        var paper=(Map<String,Object>)p.s().get("office_case");
+        return paper.get("order").equals(paper.get("invoice"))?"approve":"revise";
+    }
+    @SuppressWarnings("unchecked") Map<String,Object> officeBody(Player p) {
+        return Map.of("case_id",((Map<String,Object>)p.s().get("office_case")).get("id"));
+    }
+    @Test void officeWorkPersistsMistakesPauseAndPaysExactlyOnce()throws Exception {
+        var p=new Player();p.act("select_character","female");int money=((Number)p.s().get("money")).intValue();
+        p.act("office_start");var before=p.saved;
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","office_finish","version",p.saved.get("version"))).status());
+        assertEquals(before,call("GET","state/",p.token,null).data());
+        p.act("office_review",officeAnswer(p).equals("approve")?"revise":"approve",officeBody(p));
+        assertEquals(0,((Map<?,?>)p.s().get("office_task")).get("index"));
+        assertEquals(1,((Map<?,?>)p.s().get("office_task")).get("mistakes"));
+        assertEquals(money,p.s().get("money"));
+        p.act("office_pause");assertEquals(false,((Map<?,?>)p.s().get("office_task")).get("active"));
+        assertEquals(p.saved,call("GET","state/",p.token,null).data());p.act("office_start");
+        for(int i=0;i<DocumentWork.TOTAL;i++) {
+            var stale=officeBody(p);p.act("office_review",officeAnswer(p),stale);
+            if(i<DocumentWork.TOTAL-1)assertEquals(400,call("POST","actions/",p.token,Map.of("command","office_review","choice","approve","case_id",stale.get("case_id"),"version",p.saved.get("version"))).status());
+        }
+        assertEquals(money,p.s().get("money"));assertEquals(0,p.s().get("day"));
+        var version=p.saved.get("version");p.act("office_finish");
+        assertEquals(money+10,p.s().get("money"));assertEquals(1,p.s().get("day"));assertFalse(p.s().containsKey("office_task"));
+        assertEquals(409,call("POST","actions/",p.token,Map.of("command","office_finish","version",version)).status());
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","office_finish","version",p.saved.get("version"))).status());
+        assertEquals(p.saved,call("GET","state/",p.token,null).data());
+    }
+    @Test void officeWorkCompletesFiveDaysAndDoesNotAcceptForgedProgress()throws Exception {
+        var p=new Player();p.act("select_character","male");
+        for(int day=0;day<5;day++) {
+            p.act("office_start");
+            assertEquals(400,call("POST","actions/",p.token,Map.of("command","office_review","choice","approve","case_id","forged","index",6,"version",p.saved.get("version"))).status());
+            for(int i=0;i<DocumentWork.TOTAL;i++)p.act("office_review",officeAnswer(p),officeBody(p));
+            p.act("office_finish");
+        }
+        assertEquals("place",p.s().get("phase"));assertEquals(130,p.s().get("money"));assertEquals(50,p.s().get("stamina"));
+    }
     @Test void eachSitePublishesTrustedCoordinatesAndChecksItsForbiddenRegions()throws Exception {
         var p=new Player();p.prepare(false);
         @SuppressWarnings("unchecked") var published=(Map<String,Object>)p.s().get("placement_site");

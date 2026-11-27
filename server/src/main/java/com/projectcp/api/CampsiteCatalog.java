@@ -46,6 +46,6 @@ final class CampsiteCatalog {
         result.put("field_coordinate_system","godot_y_up");
         String id=(String)state.getOrDefault("place","");
         if (!id.isEmpty()) result.put("placement_site",site(id));
-        return result;
+        return DocumentWork.enrich(result);
     }
 }
