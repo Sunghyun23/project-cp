@@ -40,10 +40,15 @@
     },
     "rotation": {
       "required": true,
-      "step_degrees": null,
+      "step_degrees": 90,
       "direction_images": [],
-      "status": "angle_and_visual_method_undecided",
-      "proposal": "90_degree_steps_for_mvp"
+      "status": "angle_confirmed_visuals_pending",
+      "allowed_degrees": [
+        0,
+        90,
+        180,
+        270
+      ]
     }
   },
   "selection": {
