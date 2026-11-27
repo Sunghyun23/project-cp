@@ -8,12 +8,12 @@ final class MvpRules {
     record Item(String name, int price, int[][] cells) {}
     static final Map<String,Item> ITEMS = new LinkedHashMap<>();
     static {
-        ITEMS.put("tent", new Item("텐트", 35, rect(3,2)));
+        ITEMS.put("tent", new Item("텐트", 35, new int[][]{{0,0},{1,0},{2,0},{0,1},{1,1}}));
         ITEMS.put("stove", new Item("버너", 20, rect(2,1)));
         ITEMS.put("chair", new Item("의자", 20, new int[][]{{0,0},{0,1},{1,1}}));
-        ITEMS.put("table", new Item("테이블", 30, rect(3,2)));
+        ITEMS.put("table", new Item("테이블", 30, new int[][]{{0,0},{1,0},{2,0},{1,1}}));
         ITEMS.put("lantern", new Item("랜턴", 25, rect(1,2)));
-        ITEMS.put("rug", new Item("러그", 18, rect(2,3)));
+        ITEMS.put("rug", new Item("러그", 18, new int[][]{{0,0},{0,1},{1,1},{1,2}}));
         ITEMS.put("meal", new Item("라면 재료", 20, rect(1,1)));
     }
     static int[][] rect(int w,int h) {
@@ -82,8 +82,15 @@ final class MvpRules {
         long number=((Number)value).longValue();need(number>=min&&number<=max,"배치 범위를 확인해 주세요.");return (int)number;
     }
     static int[][] footprint(String id,boolean rotated) {
-        var src=ITEMS.get(id).cells();int height=Arrays.stream(src).mapToInt(c->c[1]).max().orElse(0)+1;
-        return Arrays.stream(src).map(c->rotated?new int[]{height-1-c[1],c[0]}:new int[]{c[0],c[1]}).toArray(int[][]::new);
+        return footprint(id,rotated?90:0);
+    }
+    static int[][] footprint(String id,int angle) {
+        var cells=Arrays.stream(ITEMS.get(id).cells()).map(int[]::clone).toArray(int[][]::new);
+        for(int turn=0;turn<angle/90;turn++) {
+            int height=Arrays.stream(cells).mapToInt(c->c[1]).max().orElse(0)+1;
+            cells=Arrays.stream(cells).map(c->new int[]{height-1-c[1],c[0]}).toArray(int[][]::new);
+        }
+        return cells;
     }
     @SuppressWarnings("unchecked") static void place(Map<String,Object>s,String id,Map<String,Object>body,String zone) {
         need(ITEMS.containsKey(id),"알 수 없는 물건이에요.");
@@ -93,22 +100,26 @@ final class MvpRules {
         else need(available(s).contains(id),"보유한 물건만 적재할 수 있어요.");
         int x=integer(body,"x",0,15),y=integer(body,"y",0,15);
         need(body.getOrDefault("rotated",false) instanceof Boolean,"회전 값이 올바르지 않아요.");
-        boolean rotated=Boolean.TRUE.equals(body.get("rotated"));
+        int angle=requestedRotation(body);boolean rotated=angle%180!=0;
+        if(!body.containsKey("rotation_degrees")&&target.get(id) instanceof Map<?,?> old) {
+            @SuppressWarnings("unchecked") var previous=(Map<String,Object>)old;
+            if(angle%180==fieldRotation(previous)%180)angle=fieldRotation(previous);
+        }
         int width=field?(s.get("place").equals("pine")?10:8):6,height=field?(s.get("place").equals("pine")?7:6):5;
         var occupied=new HashSet<String>();
         for(var e:target.entrySet()) {
             if(e.getKey().equals(id))continue;
             var p=(Map<String,Object>)e.getValue();
-            for(var c:footprint(e.getKey(),Boolean.TRUE.equals(p.get("rotated"))))
+            for(var c:footprint(e.getKey(),fieldRotation(p)))
                 occupied.add((n(p,"x")+c[0])+":"+(n(p,"y")+c[1]));
         }
-        for(var c:footprint(id,rotated)) {
+        for(var c:footprint(id,angle)) {
             int px=x+c[0],py=y+c[1];
             need(px<width&&py<height,"물건이 격자 밖으로 나가요.");
             need(!occupied.contains(px+":"+py),"다른 물건과 겹쳐요.");
             need(!field||!s.get("place").equals("pine")||!(px<2&&py<2),"나무가 있는 칸에는 놓을 수 없어요.");
         }
-        boolean newItem=!target.containsKey(id);target.put(id,new LinkedHashMap<>(Map.of("x",x,"y",y,"rotated",rotated)));
+        boolean newItem=!target.containsKey(id);target.put(id,new LinkedHashMap<>(Map.of("x",x,"y",y,"rotated",rotated,"rotation_degrees",angle)));
         if(field&&newItem)spendStamina(s,1);
     }
     static double coordinate(Map<String,Object>body,String key,double min,double max) {
@@ -229,6 +240,11 @@ final class MvpRules {
             s.put("phase","packing");s.put("cargo",new LinkedHashMap<>());s.put("pack_started",false);s.put("pack_finished",false);s.put("pack_remaining_ms",45000);
         } else if(Set.of("packing","return_pack").contains(phase)&&command.equals("start_pack")) {
             need(!Boolean.TRUE.equals(s.get("pack_started")),"이미 적재 중이에요.");s.put("pack_started",true);
+        } else if(Set.of("packing","return_pack").contains(phase)&&command.equals("finish_pack")) {
+            need(Boolean.TRUE.equals(s.get("pack_started")),"짐 싸기를 먼저 시작해 주세요.");
+            var missed=new ArrayList<>(available(s));missed.removeAll(grid(s,"cargo").keySet());
+            need(!phase.equals("return_pack")||missed.isEmpty()||Boolean.TRUE.equals(body.get("confirm_loss")),"남겨질 물건을 확인한 뒤 귀가해 주세요.");
+            finishPacking(s);
         } else if(Set.of("packing","return_pack").contains(phase)&&Set.of("place_item","remove_item").contains(command)) {
             need(Boolean.TRUE.equals(s.get("pack_started")),"짐 싸기를 먼저 시작해 주세요.");
             if(command.equals("place_item"))place(s,choice,body,"cargo");else grid(s,"cargo").remove(choice);

@@ -60,6 +60,39 @@ class MvpApiTest {
         assertTrue(((Map<?,?>)saved.get("field")).containsKey("lantern"));
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(source,"place_item","lantern",Map.of("x",10.1,"y",0.0,"z",2.0)));
     }
+    @Test void earlyDepartureAndReturnUseSamePackingResultsAndRequireLossConfirmation()throws Exception {
+        var p=new Player();p.prepare(false);p.place("tent",0,0,false);
+        p.act("finish_pack");assertEquals("setup",p.s().get("phase"));
+        assertTrue(((Number)p.s().get("pack_remaining_ms")).intValue()>0);
+        assertEquals(List.of("stove","chair"),p.s().get("packing_result"));
+        p.act("setup_done");p.act("sleep");p.act("leave_camp");p.act("teardown_done");p.act("start_pack");
+        var before=p.saved;
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","finish_pack","version",p.saved.get("version"))).status());
+        assertEquals(before,call("GET","state/",p.token,null).data());
+        p.act("finish_pack","",Map.of("confirm_loss",true));
+        assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("tent"),p.s().get("lost"));
+        assertEquals(List.of("stove","chair"),p.s().get("owned"));
+    }
+    @Test void interlockingFootprintsLeaveRealHolesAndRotateInFourDirections()throws Exception {
+        var p=new Player();p.prepare(true);p.place("tent",0,0,false);
+        // 텐트 P 모양의 빈 칸에는 음식 1칸을 끼워 넣을 수 있다.
+        p.place("meal",2,1,false);
+        assertEquals(2,((Map<?,?>)p.s().get("cargo")).size());
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","place_item","choice","meal","version",p.saved.get("version"),"x",1,"y",1)).status());
+        p.act("remove_item","meal");
+        for(int angle:List.of(90,180,270,0)) {
+            p.act("place_item","tent",Map.of("x",0,"y",0,"rotation_degrees",angle));
+            assertEquals(angle,((Map<?,?>)((Map<?,?>)p.s().get("cargo")).get("tent")).get("rotation_degrees"));
+            assertEquals(5,MvpRules.footprint("tent",angle).length);
+            assertEquals(p.saved,call("GET","state/",p.token,null).data());
+        }
+        for(String id:List.of("tent","chair","table","rug")) {
+            var shape=MvpRules.footprint(id,0);
+            int w=Arrays.stream(shape).mapToInt(c->c[0]).max().orElseThrow()+1;
+            int h=Arrays.stream(shape).mapToInt(c->c[1]).max().orElseThrow()+1;
+            assertTrue(shape.length<w*h,id+" must have an interlocking silhouette");
+        }
+    }
     @Test void zUpDragRequestPreservesLegacyStorageAndPublishesStackableMetadata()throws Exception {
         var p=new Player();p.prepare(false);p.place("tent",0,0,false);p.place("stove",3,0,false);p.expire();
         p.act("place_item","stove",Map.of("x",4.0,"y",2.0,"z",0.0,"coordinate_system","z_up"));
