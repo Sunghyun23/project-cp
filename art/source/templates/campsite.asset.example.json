@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "document_kind": "authoring_example_not_runtime",
+  "status": "draft",
+  "asset_id": "example_campsite",
+  "kind": "campsite",
+  "coordinate_system": "z_up",
+  "art": {
+    "style_reference": "game/assets/pixel/campsite-day-terrain.png",
+    "source_file": null,
+    "canvas_size_px": null,
+    "variants": {"day": null, "night": null},
+    "movable_equipment_baked_in": false,
+    "layout_id": "example_shared_day_night_layout"
+  },
+  "placement": {"min": [0, 0, 0], "max": [8, 6, 0], "ground_z": 0, "step": 0.25, "blocked": []},
+  "alignment_anchors": [
+    {"id": "ground_anchor_a", "image_px": null, "game_xyz": null},
+    {"id": "ground_anchor_b", "image_px": null, "game_xyz": null},
+    {"id": "ground_anchor_c", "image_px": null, "game_xyz": null}
+  ],
+  "view": {"yaw_degrees": 30, "elevation_degrees": 38, "center": [0.5, 0.69], "width_ratio": 0.88, "height_ratio": 0.3},
+  "effect_regions": [],
+  "provenance": {"tool_or_author": null, "prompt_or_source": null, "usage_terms": null},
+  "review": {"image": "pending", "coordinate_alignment": "pending", "runtime_link": "pending", "phone": "pending", "fold": "pending", "pc": "pending", "android_device": "not_tested"}
+}

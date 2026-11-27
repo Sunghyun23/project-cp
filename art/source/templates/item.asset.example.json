@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "document_kind": "authoring_example_not_runtime",
+  "status": "draft",
+  "asset_id": "example_table",
+  "kind": "item",
+  "coordinate_system": "z_up",
+  "art": {
+    "style_reference": "game/assets/pixel/camping-props.png",
+    "source_file": null,
+    "runtime_image": null,
+    "canvas_size_px": [
+      512,
+      512
+    ],
+    "pivot_px": [
+      256,
+      436
+    ],
+    "pixel_density_px_per_unit": null,
+    "transparent_background": true
+  },
+  "placement": {
+    "footprint_xy": [
+      2.1,
+      1.4
+    ],
+    "visual_height_z": 0.9,
+    "stackable": true,
+    "surface_height": 0.9,
+    "support_rect_xy": {
+      "min": [
+        -1.05,
+        -0.7
+      ],
+      "max": [
+        1.05,
+        0.7
+      ]
+    },
+    "rotation": {
+      "required": true,
+      "step_degrees": null,
+      "direction_images": [],
+      "status": "angle_and_visual_method_undecided",
+      "proposal": "90_degree_steps_for_mvp"
+    }
+  },
+  "selection": {
+    "mode": "alpha",
+    "min_touch_size_ui": 56
+  },
+  "cargo": {
+    "cells": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "rotation_degrees": [
+      0,
+      90
+    ]
+  },
+  "provenance": {
+    "tool_or_author": null,
+    "prompt_or_source": null,
+    "usage_terms": null
+  },
+  "review": {
+    "image": "pending",
+    "runtime_link": "pending",
+    "phone": "pending",
+    "fold": "pending",
+    "pc": "pending",
+    "android_device": "not_tested"
+  }
+}

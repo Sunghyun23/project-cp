@@ -6,3 +6,5 @@
 제작 도구·형식·용량 기준은 미정이다.
 
 제작 대상과 현재 자원의 대응은 [기획 기반 에셋 목록](../../docs/06-art-audio/asset-list.md)을 기준으로 관리한다.
+
+아이템·장소 제작은 [어셋 제작 규칙](../../docs/06-art-audio/asset-spec.md)을 따른다. 작성용 초안은 [아이템](templates/item.asset.example.json)·[장소](templates/campsite.asset.example.json) 예시를 복사해 시작한다. 신규 원본·메타데이터의 기본 위치는 `items/<id>/`, `places/<id>/`이며 기존 PNG·프롬프트는 이동하지 않는다. 예시의 수치는 임시이며 런타임에 자동 반영되지 않는다.
