@@ -49,3 +49,36 @@ for name in ("login.css", "login.js", "loading.css"):
 for name in ("campsite-day.png", "campsite-night.png"):
     shutil.copy2(Path("game/assets/pixel") / name, root / "assets" / name)
 shutil.copy2("game/assets/fonts/NotoSansKR.ttf", root / "assets/NotoSansKR.ttf")
+
+# 웹 시작·로그인 화면도 같은 원본을 참조한다.
+shutil.copy2("game/assets/fonts/DOSPilgi.ttf", root / "assets/DOSPilgi.ttf")
+shutil.copy2("game/assets/pixel/camper-animations.png", root / "assets/camper-animations.png")
+(root / "assets/ui").mkdir(exist_ok=True)
+for source in Path("game/assets/ui").glob("*.svg"):
+    shutil.copy2(source, root / "assets/ui" / source.name)
+
+# 배포 확인용: 인증 정보 없이 소스와 빌드 시각만 제공한다.
+import hashlib, json
+from datetime import datetime, timezone
+fingerprint = hashlib.sha256()
+for folder in (Path("game"), Path("web")):
+    for source in sorted(folder.rglob("*")):
+        if not source.is_file() or ".godot" in source.parts:
+            continue
+        fingerprint.update(str(source).encode())
+        fingerprint.update(source.read_bytes())
+(root / "build-info.json").write_text(json.dumps({
+    "protocol": "mvp-1-xyz-sprites",
+    "source_sha256": fingerprint.hexdigest(),
+    "built_at": datetime.now(timezone.utc).isoformat()
+}, ensure_ascii=False))
+
+(root / "assets/licenses").mkdir(exist_ok=True)
+for source in Path("game/assets/fonts").glob("*.txt"):
+    shutil.copy2(source, root / "assets/licenses" / source.name)
+# 사전 압축 파일도 본체와 일치하도록 매 빌드마다 갱신한다.
+import gzip
+for name in ("index.pck", "index.wasm", "index.js"):
+    source = root / name
+    if source.exists():
+        (root / (name + ".gz")).write_bytes(gzip.compress(source.read_bytes(), compresslevel=6, mtime=0))

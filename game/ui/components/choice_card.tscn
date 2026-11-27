@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Theme" path="res://ui/theme/camping.tres" id="1"]
+
+[node name="ChoiceCard" type="Button"]
+custom_minimum_size = Vector2(144, 64)
+theme = ExtResource("1")
+theme_type_variation = &"ChoiceCard"
+toggle_mode = true
+text = "토요일 · 맑음\n미선택"
+autowrap_mode = 3

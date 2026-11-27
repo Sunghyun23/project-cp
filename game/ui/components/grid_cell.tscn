@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://ui/theme/camping.tres" id="1"]
+[ext_resource type="Script" path="res://ui/components/grid_cell.gd" id="2"]
+
+[node name="GridCell" type="Button"]
+custom_minimum_size = Vector2(80, 64)
+theme = ExtResource("1")
+script = ExtResource("2")

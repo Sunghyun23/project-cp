@@ -6,13 +6,16 @@ import java.util.*;
 final class PrototypeRules {
     private PrototypeRules() {}
 
-    static Map<String, Object> initialState() {
+    static Map<String, Object> initialState() { return MvpRules.initialState(); }
+
+    static Map<String, Object> legacyInitialState() {
         var s = new LinkedHashMap<String, Object>();
-        s.putAll(Map.of("week", 1, "day", 0, "phase", "work", "money", 80,
+        s.putAll(Map.of("week", 1, "day", 0, "phase", "character", "money", 80,
                 "strength", 50, "luck", 50, "stamina", 80, "meal", "", "gear", "basic"));
         s.putAll(Map.of("packed", new ArrayList<>(), "cooking", 0,
                 "ingredients", new ArrayList<>(), "rested", false, "job_done", false,
                 "stars", 0, "recipes", new LinkedHashMap<>()));
+        s.put("character_id", "");
         return s;
     }
 
@@ -42,14 +45,29 @@ final class PrototypeRules {
     static void recover(Map<String, Object> s, String key, int delta) { s.put(key, Math.min(100, number(s, key) + delta)); }
     static void spend(Map<String, Object> s, String key, int amount) { s.put(key, Math.max(0, number(s, key) - amount)); }
 
+    static Map<String,Object> transition(Map<String,Object> current,String command,String choice,Map<String,Object> body) {
+        return current.containsKey("mvp_version")?MvpRules.transition(current,command,choice,body):transition(current,command,choice);
+    }
+
     @SuppressWarnings("unchecked")
     static Map<String, Object> transition(Map<String, Object> current, String command, String choice) {
+        if(current.containsKey("mvp_version"))return MvpRules.transition(current,command,choice,Map.of());
+        if(command.equals("upgrade_mvp")) {
+            if(!Set.of("character","work","shopping","settlement").contains(current.get("phase")))
+                throw new IllegalArgumentException("이번 주를 마친 뒤 새 MVP로 이어갈 수 있어요.");
+            return MvpRules.upgrade(current);
+        }
         var s = copy(current);
         var phase = (String) s.get("phase");
         var packed = (List<String>) s.get("packed");
         var ingredients = (List<String>) s.get("ingredients");
         boolean improved = "improved".equals(s.get("gear"));
-        if (phase.equals("work") && command.equals("job") && !Boolean.TRUE.equals(s.get("job_done"))) {
+        if (phase.equals("character") && command.equals("select_character")) {
+            if (!Set.of("female", "male").contains(choice))
+                throw new IllegalArgumentException("캐릭터를 선택해 주세요.");
+            s.put("character_id", choice);
+            s.put("phase", "work");
+        } else if (phase.equals("work") && command.equals("job") && !Boolean.TRUE.equals(s.get("job_done"))) {
             add(s, "money", 15); spend(s, "stamina", 8); s.put("job_done", true);
         } else if (phase.equals("work") && command.equals("work")) {
             add(s, "money", 10); spend(s, "stamina", 6); spend(s, "strength", 2); spend(s, "luck", 1);

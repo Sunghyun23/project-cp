@@ -98,11 +98,12 @@ func set_view(real_3d: bool, shadows: bool) -> void:
 
 func fit() -> void:
 	if topbar==null:return
+	preload("res://ui/ui_metrics.gd").apply(self, size.x <= 960)
 	var phone := size.x<600
 	var edge := 12 if phone else 22
 	topbar.position=Vector2(edge,edge)
 	topbar.size=Vector2(size.x-edge*2,66)
-	title.add_theme_font_size_override("font_size",15 if phone else 20)
+	title.add_theme_font_size_override("font_size",24 if size.x <= 960 else 20)
 	title.text="△ 주말 캠핑" if size.x<360 else "△ 이번 주말은 캠핑"
 	stats.position=Vector2(edge,topbar.position.y+topbar.size.y+8)
 	stats.size=Vector2(size.x-edge*2,0)

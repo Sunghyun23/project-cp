@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>이번 주말은 캠핑 · 로그인</title><link rel="stylesheet" href="/login.css"><script src="https://accounts.google.com/gsi/client" async defer></script><script src="/login.js" defer></script></head>
-<body><div class="landscape" aria-hidden="true"></div><div class="shade"></div><main>
-<header><span class="eyebrow">작은 쉼표, 커다란 주말</span><h1>이번 주말은<br><em>캠핑</em></h1><p>바쁜 한 주를 접어 두고,<br>호숫가 작은 캠프로 떠나요.</p><span class="badge">2D 픽셀 캠핑 프로토타입</span></header>
-<section class="card" aria-label="로그인"><div class="card-heading"><span class="dot"></span><span>당신의 주말을 이어서</span><button id="time" class="text-button" type="button">밤 풍경 보기</button></div>
+<body class="intro-mode"><section id="intro" aria-label="캠핑 인트로"><div id="intro-field" aria-label="눌러서 캠퍼 이동" tabindex="0"><div id="intro-camper" aria-hidden="true"></div></div><div class="intro-heading"><span>작은 쉼표, 커다란 주말</span><h1>이번 주말은<br><em>캠핑</em></h1><p>벌고, 챙기고, 나만의 캠프를 펼쳐요.</p></div><div class="intro-actions"><p>빈 곳을 눌러 가볍게 걸어보세요.</p><button id="start-game" class="primary" type="button">시작하기 →</button><a id="intro-account" class="intro-account" href="/?account=1">Google 로그인 · 계정</a></div></section><div class="landscape" aria-hidden="true"></div><div class="shade"></div><main>
+<header><span class="eyebrow">작은 쉼표, 커다란 주말</span><h1>이번 주말은<br><em>캠핑</em></h1><p>바쁜 한 주를 접어 두고,<br>호숫가 작은 캠프로 떠나요.</p><span class="badge">나만의 주말 여행</span></header>
+<section class="card" aria-label="로그인"><button id="back-intro" class="text-button" type="button">← 풍경으로 돌아가기</button><div class="card-heading"><span class="dot"></span><span>당신의 주말을 이어서</span><button id="time" class="text-button" type="button">밤 풍경 보기</button></div>
 <div id="signed-out"><h2>캠프에 오신 걸 환영해요</h2><p class="muted">계정을 만들면 다른 브라우저에서도 이어 할 수 있어요.</p>
 <div id="google-button"></div><p id="google-status" class="muted small">Google 로그인을 준비하고 있어요.</p><div class="divider">또는 게스트 계정으로</div>
 <div class="tabs"><button type="button" id="login-tab" class="active">로그인</button><button type="button" id="register-tab">처음 왔어요</button><button type="button" id="recover-tab">계정 복구</button></div>
@@ -12,4 +12,4 @@
 <button id="submit" class="primary" type="submit">캠프로 들어가기 <span>→</span></button></form></div>
 <div id="signed-in" hidden><h2 id="welcome">다시 오셨네요, 캠퍼님</h2><p class="muted">계정에 저장된 주말을 이어서 즐겨요.</p><a class="primary" href="/play.html">캠프로 들어가기 <span>→</span></a><div id="link-box"><h3>Google 계정 연결</h3><p class="muted small">지금 게스트 진행과 ID·비밀번호를 유지하며 연결해요. 다른 계정의 진행과 자동으로 합치지 않아요.</p><div id="google-link-button"></div></div><p id="linked" hidden>✓ Google 계정이 연결되어 있어요.</p><button type="button" id="logout" class="secondary">로그아웃</button></div>
 <div id="recovery-result" hidden><h3>복구 코드를 보관해 주세요</h3><p class="muted small">비밀번호를 잊었을 때 필요해요. 이 화면에서 한 번만 보여드리며, 새 코드가 발급되면 이전 코드는 사용할 수 없어요.</p><code id="recovery-code"></code><button type="button" id="saved-code" class="primary">코드를 따로 보관했어요 →</button></div>
-<p id="message" role="status" aria-live="polite"></p><footer>기획 검증용 · 게임 규칙과 아트는 계속 바뀔 수 있어요</footer></section></main></body></html>
+<p id="message" role="status" aria-live="polite"></p><footer>천천히 준비하고, 나만의 주말을 만들어요.</footer></section></main></body></html>

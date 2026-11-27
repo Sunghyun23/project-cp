@@ -12,7 +12,7 @@ bash tools/dev.sh web
 bash tools/test-server.sh
 ```
 
-웹은 `http://localhost:8080`, API는 `http://localhost:8000`이다. 테스트는 별도 Compose 프로젝트·임시 DB를 사용하며 실제 진행 볼륨을 지우지 않는다. 실제 PostgreSQL을 사용하는 통합 테스트와 JWT 검증 테스트 총 13개로 주간 진행·별점·입력 오류·동시 저장·기존 데이터 호환을 확인한다.
+웹은 `http://localhost:8080`, API는 `http://localhost:8000`이다. 테스트는 별도 Compose 프로젝트·임시 DB를 사용하며 실제 진행 볼륨을 지우지 않는다. 실제 PostgreSQL을 사용하는 통합 테스트와 JWT 검증 테스트 총 20개로 주간 진행·별점·입력 오류·동시 저장·기존 데이터 호환을 확인한다.
 
 ## API 계약
 
@@ -69,3 +69,5 @@ Web 내보내기 후 `tools/prepare-web.py`가 게임 진입점을 `/play.html`�
 `/api/v1/auth/` 아래 `config/`, `me/`는 GET, `register/`, `login/`, `recover/`, `logout/`, `google/`, `google/link/`는 POST다. 변경 요청에 허용 Origin과 `X-CP-Request: 1`을 요구한다. Google nonce는 5분 쿠키로 전달하고 ID 토큰 검증과 비교한다. 토큰·비밀번호·복구 원문은 로그에 남기지 않는다. 로그인 변경 요청은 IP별 분당 30회 제한한다.
 
 V2 마이그레이션은 계정·로그인 세션 테이블을 추가하며 기존 진행을 삭제하지 않는다. 계정 복구는 이전 복구 코드와 모든 게임 세션을 폐기한다. 세부 정책·미구현 범위는 [계정 명세](../docs/03-systems/authentication.md)를 따른다. 공개 웹 Google 로그인 성공은 사용자가 확인했으며 Android 실기기 인증은 미검증이다.
+
+첫 완주 MVP는 `MvpRules.java`로 분리했다. `mvp_version`이 없는 기존 진행의 규칙도 보존하며 안전한 경계에서만 전환한다. [구현·검증 기준](../docs/07-technical/mvp-v1.md)을 따른다.

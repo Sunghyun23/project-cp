@@ -83,7 +83,7 @@ public class PrototypeController {
                 || !(body.getOrDefault("choice", "") instanceof String choice) || choice.length() > 32)
             return error(HttpStatus.BAD_REQUEST, "행동 형식이 올바르지 않아요.");
         Map<String, Object> next;
-        try { next = PrototypeRules.transition(session.state(), command, choice); }
+        try { next = PrototypeRules.transition(session.state(), command, choice, body); }
         catch (IllegalArgumentException e) { return error(HttpStatus.BAD_REQUEST, e.getMessage()); }
         jdbc.sql("UPDATE public.prototype_prototypesession SET state=CAST(:state AS jsonb), version=:version, updated_at=CURRENT_TIMESTAMP WHERE token_hash=:hash")
                 .param("state", json.writeValueAsString(next)).param("version", session.version() + 1).param("hash", requestHash(auth)).update();

@@ -1,0 +1,23 @@
+[
+  {
+    "key": "props",
+    "refs": [
+      "/Users/sunghyunkim/source/project-cp/game/assets/pixel/campsite-day.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: transparent camping equipment sprite atlas for a Godot 2D pixel game. Match the reference campsite pixel art and warm forest colors. EXACT grid 3 columns by 2 rows, 6 equal square cells, landscape 3:2 canvas. Each object fully fits in its own equal cell, centered with generous transparent padding, same three-quarter elevated game view. Row 1 left to right: cream canvas camping tent; folding camping chair; low wooden camping table. Row 2 left to right: warm hanging camping lantern; small portable camp stove with a single cooking pot; folded-out woven camping rug. One object per cell, exactly six objects, no extra props. Sharp deliberate pixel blocks, fine dark outlines, beautiful cozy game assets. Genuine transparent background across canvas and gutters. No ground, no shadows outside sprites, no labels, no text, no grid lines, no watermark."
+  },
+  {
+    "key": "rain_male",
+    "refs": [
+      "/Users/sunghyunkim/source/project-cp/game/assets/pixel/camper-male-animations.png"
+    ],
+    "prompt": "Use case: identity-preserve. Edit target: attached male camper 4x2 animation sheet. Create a RAIN OUTFIT VARIANT ONLY. Preserve the same male face, short hair, chibi body proportions, mug, foot baselines, pixel style, 4 equal columns and 2 equal rows, exact matching scale and center in each cell. Replace outdoor vest and shirt with a warm yellow waterproof hooded rain jacket, hood down so face stays visible, and dark waterproof boots. Preserve all eight poses: top four breathing/blinking idle, bottom four walking. No hats floating, no clipping, generous transparent cell padding. True transparent background, no scene, no text, no labels, no watermarks. Landscape 3:2 sheet, exactly 8 frames."
+  },
+  {
+    "key": "rain_female",
+    "refs": [
+      "/Users/sunghyunkim/source/project-cp/game/assets/pixel/camper-animations.png"
+    ],
+    "prompt": "Use case: identity-preserve. Edit target: attached female camper 4x2 animation sheet. Create a RAIN OUTFIT VARIANT ONLY. Preserve the same female face, brown bob hair, chibi body proportions, mug, foot baselines, pixel style, 4 equal columns and 2 equal rows, exact matching scale and center in each cell. Replace outdoor overalls/vest and shirt with a warm yellow waterproof hooded rain jacket, hood down so face stays visible, dark trousers and waterproof boots. Preserve all eight poses: top four breathing/blinking idle, bottom four walking. No clipping, generous transparent cell padding. True transparent background, no scene, no text, no labels, no watermarks. Landscape 3:2 sheet, exactly 8 frames."
+  }
+]

@@ -1,7 +1,7 @@
 {
   "fileKey": "4MPq9ATTlOklMdtxgWVZnj",
   "url": "https://www.figma.com/design/4MPq9ATTlOklMdtxgWVZnj",
-  "status": "pixel_direction_review_wireframes_not_created",
+  "status": "foundations_components_written_final_qa_and_applications_blocked",
   "foundations": {
     "file": "4MPq9ATTlOklMdtxgWVZnj",
     "page": "0:1",
@@ -133,6 +133,159 @@
       "5:61",
       "5:74",
       "5:81"
+    ]
+  },
+  "version": "0.3",
+  "updatedAt": "2026-11-27",
+  "rebuild": {
+    "runId": "project-cp-v3-20261127",
+    "scope": "design-system-update",
+    "fileKey": "4MPq9ATTlOklMdtxgWVZnj",
+    "sessionId": "d18d916e-a65e-494f-abc2-6d5a7c410986",
+    "step": "foundations-and-components-updated-applications-blocked-by-figma-starter-limit",
+    "tokens": {
+      "palette": {
+        "forest": "#263C2E",
+        "pine": "#4B6542",
+        "moss": "#71825B",
+        "cream": "#FFF7DF",
+        "paper": "#EEE3C9",
+        "white": "#FAF0D9",
+        "ink": "#263626",
+        "muted": "#5D604E",
+        "line": "#8B714E",
+        "sand": "#E5BC70",
+        "hover": "#FFF3CF",
+        "pressed": "#DBC296",
+        "red": "#9B3D30",
+        "paleRed": "#F8E3D4",
+        "amber": "#805016",
+        "paleAmber": "#FAEBC2",
+        "green": "#346744",
+        "paleGreen": "#E6EED5",
+        "disabled": "#D6CFBC",
+        "focus": "#A36A25"
+      },
+      "changedVariables": [
+        "VariableID:2:3",
+        "VariableID:2:4",
+        "VariableID:2:5",
+        "VariableID:2:6",
+        "VariableID:2:7",
+        "VariableID:2:8",
+        "VariableID:2:9",
+        "VariableID:2:10",
+        "VariableID:2:11",
+        "VariableID:2:12",
+        "VariableID:2:13",
+        "VariableID:2:14",
+        "VariableID:2:15",
+        "VariableID:2:16",
+        "VariableID:2:17",
+        "VariableID:2:18",
+        "VariableID:2:19",
+        "VariableID:2:20",
+        "VariableID:2:21",
+        "VariableID:2:22"
+      ],
+      "variables": {
+        "wood": "VariableID:10:7",
+        "highlight": "VariableID:10:8",
+        "selectedSurface": "VariableID:10:9",
+        "gridSurface": "VariableID:10:10",
+        "disabledText": "VariableID:10:11"
+      },
+      "styles": [
+        "S:9b459195fc8503e747465784a615f08b00b009de,",
+        "S:e7da403728e17d13645b216d34ad0413bf296d31,",
+        "S:b2f7651d53e923ea6c07401decf4053aca2122a9,",
+        "S:09523c12c6a5daea70b60fb881f81ea5ce63a8ae,",
+        "S:90be9f1bc790dde0255c5fc622769c3a4d22c851,",
+        "S:f0451b1d38b340ea96dff59961d4497b42210a7e,",
+        "S:596fcbedfc219c84076bf84b91054bd2c8a2a00f,"
+      ],
+      "effect": "S:4cc9d9faa18e527f8f0eb65e7c7a30d99f0bc5be,"
+    },
+    "components": {
+      "board": {
+        "id": "11:187",
+        "width": 1280,
+        "height": 2050
+      },
+      "components": {
+        "ActionButton": "11:103",
+        "WeatherDay": "11:134",
+        "CharacterChoice": "11:151",
+        "ClothingChoice": "11:168"
+      },
+      "icons": {
+        "Chair": "11:71",
+        "Pot": "11:77",
+        "Bed": "11:83",
+        "Shirt": "11:87",
+        "Sun": "11:92",
+        "Rain": "11:97",
+        "Avatar": "11:102"
+      },
+      "updated": [
+        "5:3",
+        "5:5",
+        "5:7",
+        "5:9",
+        "5:11",
+        "5:13",
+        "5:15",
+        "5:17",
+        "5:19",
+        "5:21",
+        "5:23",
+        "5:25",
+        "5:28",
+        "5:30",
+        "5:32",
+        "5:34",
+        "5:36",
+        "5:39",
+        "5:42",
+        "5:45",
+        "5:48",
+        "5:52",
+        "5:55",
+        "5:58",
+        "5:62",
+        "5:66",
+        "5:70",
+        "5:75",
+        "5:78",
+        "5:81"
+      ],
+      "archived": [
+        "5:86",
+        "8:73"
+      ]
+    },
+    "foundations": {
+      "board": {
+        "id": "13:2",
+        "width": 1280,
+        "height": 2125
+      },
+      "archived": [
+        "2:71"
+      ]
+    },
+    "applications": {
+      "status": "not_verified_created",
+      "reason": "Figma Starter MCP tool call limit"
+    },
+    "validation": {
+      "components": "composition screenshot reviewed, HUD height and grid contrast fixes applied; post-fix screenshot blocked",
+      "foundations": "creation bounds returned, screenshot review pending"
+    },
+    "pending": [
+      "responsive UI applications",
+      "post-fix visual QA",
+      "component binding/font audit"
     ]
   }
 }

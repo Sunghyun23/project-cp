@@ -1,0 +1,32 @@
+{
+  "status": "화면 비율 비교용 생성 시안 — 구현·Figma 반영 전",
+  "tool": "built-in image_gen",
+  "reference": "승인된 캠핑장 자유 활동 시안",
+  "assumptions": {
+    "pc": "가로",
+    "phone": "세로",
+    "fold": "펼친 내부 화면, 정사각형에 가까운 비율"
+  },
+  "screens": [
+    {
+      "id": "pc",
+      "label": "PC · 가로 화면",
+      "prompt": "Use case: ui-mockup. Use the attached image as the approved visual reference for this Korean 2D pixel camping game. Preserve the exact same art direction, cute camper design and clothes, tan tent with warm string lights, cooking table, two chairs and campfire, lakeside forest and late afternoon light. This is a responsive layout variant of the SAME game, not a different game or a new location. Professionally composed coherent crisp pixel art, readable clean Korean sans lettering (NOT jagged pixel fonts), small cream canvas-and-wood game controls with subtly stepped edges. The scene is dominant; no big panels or permanent sidebars, no specimen board, no device frame, no outside labels or annotations. Only UI: upper left '토요일 16:20', upper right coin icon and '1,200'; three bottom action buttons '꾸미기', '요리', '쉬기' with the same recognizable small pixel chair/cookpot/bed icons from reference. Preserve the spatial relationship: tent left, character near center, cooking table behind character, campfire and chairs to the right. Do not introduce more UI, inventory bars, joysticks, minimaps or gameplay mechanics. UI state is calm free camp exploration. Render a full-screen PC game screenshot, wide landscape 16:9 aspect ratio, approximately 1920x1080. Let the spacious panorama breathe, show a generous walkable foreground, lake and mountain depth. HUD stays compact in the two upper corners; a compact centered row of three action buttons at the bottom occupies less than half the screen width. UI text at comfortable readable scale. No browser chrome."
+    },
+    {
+      "id": "phone",
+      "label": "폰 · 세로 화면",
+      "prompt": "Use case: ui-mockup. Use the attached image as the approved visual reference for this Korean 2D pixel camping game. Preserve the exact same art direction, cute camper design and clothes, tan tent with warm string lights, cooking table, two chairs and campfire, lakeside forest and late afternoon light. This is a responsive layout variant of the SAME game, not a different game or a new location. Professionally composed coherent crisp pixel art, readable clean Korean sans lettering (NOT jagged pixel fonts), small cream canvas-and-wood game controls with subtly stepped edges. The scene is dominant; no big panels or permanent sidebars, no specimen board, no device frame, no outside labels or annotations. Only UI: upper left '토요일 16:20', upper right coin icon and '1,200'; three bottom action buttons '꾸미기', '요리', '쉬기' with the same recognizable small pixel chair/cookpot/bed icons from reference. Preserve the spatial relationship: tent left, character near center, cooking table behind character, campfire and chairs to the right. Do not introduce more UI, inventory bars, joysticks, minimaps or gameplay mechanics. UI state is calm free camp exploration. Render a full-screen ordinary smartphone portrait game screenshot, TALL 9:19.5 aspect ratio, approximately 1080x2340. This MUST be a tall portrait image. Reframe the camera for a narrow viewport: keep the camper, useful parts of the tent and fire clearly visible in a vertically composed campsite, with lake and mountain beyond. Preserve character and object scale, don't squeeze a 16:9 screen or make tiny miniature UI. Character and walkable area in the central part. The top left weekday/time and top right wallet should be modest compact plaques, with space above for the phone safe area but no drawn notch. The three bottom action buttons fit as one row across the portrait width, each with a small icon above or beside its short Korean label, comfortable generous touch areas. Reserve a little breathing room below the buttons for the gesture safe area, no drawn operating system bar. The scenery fills the full viewport edge to edge. Do not add PC side panels."
+    },
+    {
+      "id": "fold",
+      "label": "폴드 펼침 · 넓은 내부 화면",
+      "prompt": "Use case: ui-mockup. Use the attached image as the approved visual reference for this Korean 2D pixel camping game. Preserve the exact same art direction, cute camper design and clothes, tan tent with warm string lights, cooking table, two chairs and campfire, lakeside forest and late afternoon light. This is a responsive layout variant of the SAME game, not a different game or a new location. Professionally composed coherent crisp pixel art, readable clean Korean sans lettering (NOT jagged pixel fonts), small cream canvas-and-wood game controls with subtly stepped edges. The scene is dominant; no big panels or permanent sidebars, no specimen board, no device frame, no outside labels or annotations. Only UI: upper left '토요일 16:20', upper right coin icon and '1,200'; three bottom action buttons '꾸미기', '요리', '쉬기' with the same recognizable small pixel chair/cookpot/bed icons from reference. Preserve the spatial relationship: tent left, character near center, cooking table behind character, campfire and chairs to the right. Do not introduce more UI, inventory bars, joysticks, minimaps or gameplay mechanics. UI state is calm free camp exploration. Render a full-screen unfolded foldable phone INNER DISPLAY game screenshot, near-square 8:9 aspect ratio, approximately 1600x1800. This MUST be a near-square image, slightly taller than wide, distinct from both tall phone and wide PC. Use the expanded width to reveal more of the same lakeside campsite than a phone, retaining the camper and tent and lake at natural game scale. Generous free world area, not oversized UI to fill space. Compact HUD top corners; three medium touch-friendly buttons as a centered group along the bottom with side breathing room, no permanent sidebar, no fake hinge line, no device frame. This is one continuous game scene with full-width camera view."
+    }
+  ],
+  "notes": [
+    "세 화면의 캐릭터 의상은 비율 비교를 위해 동일하게 유지",
+    "별도 생성 시안이므로 오브젝트 크기·위치가 동일 월드 카메라 계산으로 검증된 것은 아님",
+    "MVP 날짜별 일기예보·의상 교체·체력 영향 화면은 후속 제작"
+  ]
+}

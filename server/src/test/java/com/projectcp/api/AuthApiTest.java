@@ -38,15 +38,16 @@ class AuthApiTest {
     String user(){return "u"+UUID.randomUUID().toString().replace("-", "").substring(0,14);}
     @Test void guestProgressPersistsAcrossBrowsersAndLogout() throws Exception {
         var a=new Browser();String name=user();assertEquals(200,a.register(name).status());
-        assertEquals(200,a.post("prototype/actions/",Map.of("command","work","version",0)).status());
+        assertEquals(200,a.post("prototype/actions/",Map.of("command","select_character","choice","male","version",0)).status());
         var b=new Browser();assertEquals(401,b.get("prototype/state/").status());
         assertEquals(200,b.post("auth/login/",Map.of("username",name,"password","long-test-password")).status());
         assertEquals(1,((Number)b.get("prototype/state/").data().get("version")).intValue());
+        assertEquals("male", ((Map<?,?>)b.get("prototype/state/").data().get("state")).get("character_id"));
         assertEquals(200,b.post("auth/logout/",Map.of()).status());assertEquals(401,b.get("prototype/state/").status());
     }
     @Test void googleLinkPreservesGuestAndRejectsOtherAccounts() throws Exception {
         when(google.verify(eq("valid-google"),any())).thenReturn("google-sub-"+user());
-        var a=new Browser();String name=user();a.register(name);a.post("prototype/actions/",Map.of("command","work","version",0));
+        var a=new Browser();String name=user();a.register(name);a.post("prototype/actions/",Map.of("command","select_character","choice","male","version",0));
         assertEquals(200,a.post("auth/google/link/",Map.of("credential","valid-google")).status());
         assertEquals(1,((Number)a.get("prototype/state/").data().get("version")).intValue());
         var b=new Browser();b.register(user());assertEquals(409,b.post("auth/google/link/",Map.of("credential","valid-google")).status());

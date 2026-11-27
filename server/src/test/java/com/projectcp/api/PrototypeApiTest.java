@@ -36,11 +36,17 @@ class PrototypeApiTest {
     class Player {
         String token;
         Map<String, Object> saved;
-        Player() throws Exception {
+        Player() throws Exception { this(true); }
+        Player(boolean choose) throws Exception {
             var created = request("POST", "prototype/sessions/", null, "{}");
             assertEquals(201, created.status());
             token = (String) created.data().get("token");
             saved = new LinkedHashMap<>(created.data()); saved.remove("token");
+            var legacy=PrototypeRules.legacyInitialState();
+            jdbc.sql("UPDATE public.prototype_prototypesession SET state=CAST(:state AS jsonb) WHERE token_hash=:hash")
+                .param("state",json.writeValueAsString(legacy)).param("hash",AccountService.hash(token)).update();
+            saved=new LinkedHashMap<>(request("GET","prototype/state/",token,null).data());
+            if (choose) act("select_character", "female");
         }
         @SuppressWarnings("unchecked") Map<String, Object> state() { return (Map<String, Object>) saved.get("state"); }
         void act(String command) throws Exception { act(command, ""); }
@@ -65,6 +71,27 @@ class PrototypeApiTest {
         }
     }
 
+    @Test void characterChoiceIsRequiredAndSurvivesReloadAndNewWeek() throws Exception {
+        var p = new Player(false);
+        assertEquals("character", p.state().get("phase"));
+        for (String body : List.of("{\"command\":\"work\",\"version\":0}",
+                "{\"command\":\"select_character\",\"choice\":\"unknown\",\"version\":0}"))
+            assertEquals(400, request("POST", "prototype/actions/", p.token, body).status());
+        assertEquals(p.saved, request("GET", "prototype/state/", p.token, null).data());
+        p.act("select_character", "male");
+        assertEquals("work", p.state().get("phase"));
+        assertEquals(0, p.state().get("day"));
+        assertEquals("male", p.state().get("character_id"));
+        assertEquals(409, request("POST", "prototype/actions/", p.token,
+                "{\"command\":\"select_character\",\"choice\":\"female\",\"version\":0}").status());
+        assertEquals(400, request("POST", "prototype/actions/", p.token,
+                "{\"command\":\"select_character\",\"choice\":\"female\",\"version\":1}").status());
+        assertEquals(p.saved, request("GET", "prototype/state/", p.token, null).data());
+        p.week("ramen", false);
+        assertEquals("work", p.state().get("phase"));
+        assertEquals("male", p.state().get("character_id"));
+    }
+
     @Test void bothMealsCompleteAndReload() throws Exception {
         var p = new Player(); p.week("ramen", false); p.week("skewer", true);
         var loaded = request("GET", "prototype/state/", p.token, null);
@@ -80,7 +107,7 @@ class PrototypeApiTest {
 
     @Test void invalidActionAndStaleVersionDoNotChangeProgress() throws Exception {
         var p = new Player();
-        assertEquals(400, request("POST", "prototype/actions/", p.token, "{\"command\":\"cook\",\"version\":0}").status());
+        assertEquals(400, request("POST", "prototype/actions/", p.token, "{\"command\":\"cook\",\"version\":1}").status());
         assertEquals(p.saved, request("GET", "prototype/state/", p.token, null).data());
         p.act("work");
         assertEquals(409, request("POST", "prototype/actions/", p.token, "{\"command\":\"work\",\"version\":0}").status());
@@ -101,20 +128,20 @@ class PrototypeApiTest {
             var ready = new CountDownLatch(2); var start = new CountDownLatch(1);
             Callable<Integer> action = () -> {
                 ready.countDown(); start.await();
-                return request("POST", "prototype/actions/", p.token, "{\"command\":\"work\",\"version\":0}").status();
+                return request("POST", "prototype/actions/", p.token, "{\"command\":\"work\",\"version\":1}").status();
             };
             var a=workers.submit(action); var b=workers.submit(action);
             assertTrue(ready.await(5, TimeUnit.SECONDS)); start.countDown();
             assertEquals(Set.of(200, 409), Set.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS)));
         }
         var loaded = request("GET", "prototype/state/", p.token, null).data();
-        assertEquals(1, loaded.get("version"));
+        assertEquals(2, loaded.get("version"));
     }
 
     @Test void legacyDjangoRowAndTokenRemainUsable() throws Exception {
         String token = UUID.randomUUID().toString();
         String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
-        var legacy = PrototypeRules.initialState(); legacy.put("money", 317); legacy.put("week", 8);
+        var legacy = PrototypeRules.legacyInitialState(); legacy.put("money", 317); legacy.put("week", 8); legacy.put("phase", "work"); legacy.remove("character_id");
         jdbc.sql("INSERT INTO public.prototype_prototypesession (token_hash,state,version,updated_at) VALUES (:hash,CAST(:state AS jsonb),7,CURRENT_TIMESTAMP)")
                 .param("hash",hash).param("state",json.writeValueAsString(legacy)).update();
         assertEquals(Map.of("state",legacy,"version",7),request("GET","prototype/state/",token,null).data());
@@ -124,13 +151,13 @@ class PrototypeApiTest {
 
     @Test void malformedPayloadDoesNotCauseServerError() throws Exception {
         var p = new Player();
-        for (String body : List.of("[]", "null", "{", "{\"version\":0,\"command\":[]}", "{\"version\":0,\"command\":\"work\",\"choice\":{}}"))
+        for (String body : List.of("[]", "null", "{", "{\"version\":1,\"command\":[]}", "{\"version\":1,\"command\":\"work\",\"choice\":{}}"))
             assertEquals(400, request("POST", "prototype/actions/", p.token, body).status(), body);
         assertEquals(p.saved, request("GET", "prototype/state/", p.token, null).data());
     }
 
     @Test void prerequisitesAndHealth() throws Exception {
-        var s=PrototypeRules.initialState(); s.put("phase","packing");
+        var s=PrototypeRules.legacyInitialState(); s.put("phase","packing");
         assertThrows(IllegalArgumentException.class,()->PrototypeRules.transition(s,"next",""));
         s.put("phase","dinner");s.put("meal","skewer");
         assertThrows(IllegalArgumentException.class,()->PrototypeRules.transition(s,"cook",""));
