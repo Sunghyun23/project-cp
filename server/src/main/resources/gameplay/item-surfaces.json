@@ -1,0 +1,9 @@
+{
+  "tent": {"stackable": false},
+  "chair": {"stackable": false},
+  "table": {"stackable": true, "surface_height": 0.9},
+  "lantern": {"stackable": false},
+  "stove": {"stackable": false},
+  "rug": {"stackable": false},
+  "meal": {"stackable": false}
+}

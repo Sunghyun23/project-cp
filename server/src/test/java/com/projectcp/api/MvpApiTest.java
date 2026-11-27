@@ -44,6 +44,33 @@ class MvpApiTest {
             if(food)act("buy_meal");act("set_clothes","rain");act("prepare_done");act("start_pack");
         }
     }
+    @Test void eachSitePublishesTrustedCoordinatesAndChecksItsForbiddenRegions()throws Exception {
+        var p=new Player();p.prepare(false);
+        @SuppressWarnings("unchecked") var published=(Map<String,Object>)p.s().get("placement_site");
+        assertEquals(CampsiteCatalog.site("lake"),published);
+        assertEquals(8.0,CampsiteCatalog.axis(CampsiteCatalog.area("lake"),"max",0));
+        assertEquals(10.0,CampsiteCatalog.axis(CampsiteCatalog.area("pine"),"max",0));
+        var source=PrototypeRules.copy(p.s());
+        source.put("phase","setup");source.put("place","pine");
+        source.put("cargo",Map.of("lantern",Map.of()));source.put("field",new LinkedHashMap<>());
+        // 응답의 범위를 위조해도 서버의 장소 정의가 판정 기준이다.
+        source.put("placement_site",Map.of("placement",Map.of("blocked",List.of())));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(source,"place_item","lantern",Map.of("x",1.0,"y",0.0,"z",1.0)));
+        var saved=MvpRules.transition(source,"place_item","lantern",Map.of("x",2.0,"y",0.0,"z",2.0));
+        assertTrue(((Map<?,?>)saved.get("field")).containsKey("lantern"));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(source,"place_item","lantern",Map.of("x",10.1,"y",0.0,"z",2.0)));
+    }
+    @Test void zUpDragRequestPreservesLegacyStorageAndPublishesStackableMetadata()throws Exception {
+        var p=new Player();p.prepare(false);p.place("tent",0,0,false);p.place("stove",3,0,false);p.expire();
+        p.act("place_item","stove",Map.of("x",4.0,"y",2.0,"z",0.0,"coordinate_system","z_up"));
+        var saved=(Map<?,?>)((Map<?,?>)p.s().get("field")).get("stove");
+        assertEquals(0.0,((Number)saved.get("y")).doubleValue());
+        assertEquals(2.0,((Number)saved.get("z")).doubleValue());
+        assertEquals("godot_y_up",p.s().get("field_coordinate_system"));
+        assertEquals(true,CampsiteCatalog.surface("table").get("stackable"));
+        for(String id:List.of("tent","chair","stove","lantern","rug"))assertEquals(false,CampsiteCatalog.surface(id).get("stackable"));
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","place_item","choice","stove","version",p.saved.get("version"),"x",4.0,"y",2.0,"z",.5,"coordinate_system","z_up")).status());
+    }
     @Test void completeTripConsumesFoodLosesOnlyUnpackedReturnGearAndPersists()throws Exception {
         var p=new Player();p.prepare(true);p.place("tent",0,0,false);p.place("stove",3,0,false);p.place("chair",3,1,false);p.place("meal",5,4,false);
         p.expire();assertEquals("setup",p.s().get("phase"));

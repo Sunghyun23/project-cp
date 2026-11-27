@@ -262,3 +262,7 @@ ID마다 `확정 범위 / 필요한 상태·방향 / 프레임·루프 / 실제 
 평일 업무 공간 시각 초안: `game/assets/pixel/workroom-day.png`. image_gen으로 캠핑장 아트 스타일을 참조해 제작했으며 프롬프트는 `workroom-generation-prompt.json`에 기록한다. 최종 업무 유형/직장 설정을 확정하지 않는다. 실제 작업 포즈·업무 의상 자원은 후속이며 현재는 캠퍼 대기 시트를 재사용한다.
 
 MVP 추가 에셋: `camping-props.png`(2D 장비 6종), `camper-male-rain.png`·`camper-female-rain.png`(방수 겉옷 대기/걷기), `campsite-pine.png`(숲 장소). 생성 프롬프트는 `mvp-art-prompts.json`·`pine-generation-prompt.json`. 실제 표시 에셋은 2D 스프라이트이며 3D는 좌표·격자·보이지 않는 배치 판정에만 사용한다. 입체 장비 모델·별도 3D 캠핑장 배경 초안은 사용자 피드백으로 대체했다.
+
+## 현장 배치용 빈 배경 — 로컬 시안
+
+`campsite-day-terrain.png`, `campsite-night-terrain.png`, `campsite-pine-terrain.png`: 기존 픽셀 풍경의 고정 텐트·의자·테이블·불 등 장비를 imagegen으로 제거한 파생 배경. 움직일 수 없는 배경 장비와 실제 드래그 아이템의 혼동을 줄인다. 기존 원본은 보존했으며 새 현장 시안에서 사용한다.

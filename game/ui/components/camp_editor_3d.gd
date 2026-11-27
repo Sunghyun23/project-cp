@@ -3,6 +3,17 @@ extends SubViewportContainer
 signal item_selected(id: String)
 signal position_changed(position_value: Vector3)
 signal item_dropped(id: String, point: Vector3)
+signal placement_rejected(reason: String)
+signal drag_state_changed
+var placement: Dictionary = {}
+var site: Dictionary = {}
+var placement_reason := ""
+var support_surfaces: Node3D
+var support_config_data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/item-surfaces.json"))
+var footprint: Node3D
+var footprint_material: StandardMaterial3D
+var hit_images := {}
+var fallback_catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/campsites.json"))
 var interaction_locked := false
 var dragging_item := false
 var active_pointer := -2
@@ -32,6 +43,8 @@ var scene_key := ""
 var yaw := 0.0
 var site_width := 8.0
 var site_depth := 6.0
+var origin_x := 4.0
+var origin_z := 3.0
 var selected_node: Node3D
 var dragging_axis := ""
 var drag_plane: Plane
@@ -149,7 +162,7 @@ func _ready() -> void:
 	world.add_child(gizmo)
 	for axis in ["x","y","z"]:
 		var direction: Vector3 = {"x":Vector3.RIGHT,"y":Vector3.UP,"z":Vector3.BACK}[axis]
-		var color: String = {"x":"d9745f","y":"9cc96d","z":"74a9d4"}[axis]
+		var color: String = {"x":"d9745f","y":"74a9d4","z":"9cc96d"}[axis]
 		var stem := cylinder(gizmo,.025,1.4,direction*.7,color)
 		if axis == "x": stem.rotation.z = -PI/2
 		if axis == "z": stem.rotation.x = PI/2
@@ -166,38 +179,79 @@ func _ready() -> void:
 		hit.shape = sphere
 		handle.add_child(hit)
 		gizmo.add_child(handle)
+		var caption := Label3D.new()
+		caption.text = {"x":"X","y":"Z","z":"Y"}[axis]
+		caption.position = direction*1.7
+		caption.font_size = 48
+		caption.pixel_size = .006
+		caption.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		caption.modulate = Color(color)
+		gizmo.add_child(caption)
 	gizmo.visible = false
+	support_surfaces = Node3D.new()
+	world.add_child(support_surfaces)
+	footprint = Node3D.new()
+	world.add_child(footprint)
+	footprint_material = material("86d7a0")
+	footprint_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	resized.connect(func():
+		if dragging_item: end_drag(true)
+		if not state.is_empty(): configure(state,selected,proposed))
 
 func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,3), rotated: bool = false) -> void:
+	if readonly and dragging_item:
+		dragging_item = false
+		active_pointer = -2
 	state = value
 	selected = id
 	proposed = point
 	if world == null:
 		return
 	mouse_filter = Control.MOUSE_FILTER_IGNORE if readonly else Control.MOUSE_FILTER_STOP
-	site_width = 10 if state.get("place", "") == "pine" else 8
-	site_depth = 7 if state.get("place", "") == "pine" else 6
-	camera.size = site_width / (.84 if size.x < 760 else .60)
-	camera.h_offset = 0 if size.x < 760 else camera.size*.13
-	camera.v_offset = camera.size*size.y/maxf(1,size.x)*(.07 if size.x<760 else .15)
-	var dimensions_key := str(site_width)+":"+str(site_depth)
+	site = to_engine_site(state.get("placement_site", fallback_catalog.sites.get(state.get("place","lake"),fallback_catalog.sites.lake)))
+	placement = site.placement
+	site_width = float(placement.max[0]) - float(placement.min[0])
+	site_depth = float(placement.max[2]) - float(placement.min[2])
+	origin_x = (float(placement.max[0])+float(placement.min[0]))/2
+	origin_z = (float(placement.max[2])+float(placement.min[2]))/2
+	var view: Dictionary = site.view
+	yaw = deg_to_rad(float(view.yaw_degrees))
+	var elevation := deg_to_rad(float(view.elevation_degrees))
+	camera.position = Vector3(sin(yaw)*cos(elevation),sin(elevation),cos(yaw)*cos(elevation))*16
+	camera.look_at(Vector3.ZERO)
+	var projected_width := absf(cos(yaw))*site_width + absf(sin(yaw))*site_depth
+	var projected_height := (absf(sin(yaw))*site_width + absf(cos(yaw))*site_depth)*sin(elevation)
+	camera.size = maxf(projected_width/float(view.width_ratio),projected_height/maxf(.1,float(view.height_ratio)*size.y/maxf(1,size.x)))
+	camera.h_offset = camera.size*(.5-float(view.center[0]))
+	camera.v_offset = camera.size*size.y/maxf(1,size.x)*(float(view.center[1])-.5)
+	var dimensions_key := JSON.stringify(site)
 	if grid_key != dimensions_key:
 		grid_key = dimensions_key
 		for child in grid_root.get_children():
 			grid_root.remove_child(child)
 			child.queue_free()
-		var line_material := material("f6edc9")
-		line_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		line_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		line_material.albedo_color.a = .25
-		for x in range(int(site_width)+1):
-			var line := box(grid_root,Vector3(.028,.006,site_depth),Vector3(x-site_width/2,.008,0),"f6edc9")
-			line.material_override = line_material
-			line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		for z in range(int(site_depth)+1):
-			var line := box(grid_root,Vector3(site_width,.006,.028),Vector3(0,.008,z-site_depth/2),"f6edc9")
-			line.material_override = line_material
-			line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var allowed_material := overlay_material("b5df88", .16)
+		# 장애물 경계로 나눈 사각형 중 실제 배치 가능한 바닥만 칠한다.
+		var xs: Array = [float(placement.min[0]),float(placement.max[0])]
+		var zs: Array = [float(placement.min[2]),float(placement.max[2])]
+		for blocked in placement.blocked:
+			xs.append(float(blocked.min[0])); xs.append(float(blocked.max[0]))
+			zs.append(float(blocked.min[2])); zs.append(float(blocked.max[2]))
+		xs.sort(); zs.sort()
+		for xi in range(xs.size()-1):
+			for zi in range(zs.size()-1):
+				var center := Vector3((xs[xi]+xs[xi+1])/2,0,(zs[zi]+zs[zi+1])/2)
+				var allowed := true
+				for blocked in placement.blocked:
+					if center.x > blocked.min[0] and center.x < blocked.max[0] and center.z > blocked.min[2] and center.z < blocked.max[2]: allowed=false
+				if allowed and xs[xi+1]>xs[xi] and zs[zi+1]>zs[zi]:
+					var patch := box(grid_root,Vector3(xs[xi+1]-xs[xi],.006,zs[zi+1]-zs[zi]),Vector3(center.x-origin_x,.008,center.z-origin_z),"b5df88")
+					patch.material_override=allowed_material
+		var edge_material := overlay_material("edf2c5", .9)
+		dashed_boundary(grid_root,Vector3(float(placement.min[0])-origin_x,.025,float(placement.min[2])-origin_z),Vector2(site_width,site_depth),edge_material)
+		for blocked in placement.blocked:
+			var at := Vector3(blocked.min[0]-origin_x,.028,blocked.min[2]-origin_z)
+			dashed_boundary(grid_root,at,Vector2(blocked.max[0]-blocked.min[0],blocked.max[2]-blocked.min[2]),overlay_material("e99882",.7))
 	grid_root.visible = not readonly
 	field = state.get("field", {})
 	var key := JSON.stringify([field,selected,rotated,state.get("cargo",{}).keys(),readonly])
@@ -210,7 +264,7 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 		for item in field:
 			var node := model(item)
 			var p: Dictionary = field[item]
-			node.position = Vector3(float(p.x)-site_width/2,float(p.y),float(p.get("z",0))-site_depth/2)
+			node.position = Vector3(float(p.x)-origin_x,float(p.y),float(p.get("z",0))-origin_z)
 			node.rotation.y = PI/2 if p.get("rotated",false) else 0
 			items_root.add_child(node)
 			if item == selected: selected_node = node
@@ -221,22 +275,80 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 				if not field.has(item):
 					var node := model(item)
 					var start := staging_position(index)
-					node.position = Vector3(start.x-site_width/2,0,start.z-site_depth/2)
+					node.position = Vector3(start.x-origin_x,0,start.z-origin_z)
 					node.get_child(0).alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 					node.get_child(0).modulate.a = .65
 					items_root.add_child(node)
 					if item == selected: selected_node = node
 				index += 1
 	if selected_node != null:
-		selected_node.position = Vector3(proposed.x-site_width/2,proposed.y,proposed.z-site_depth/2)
+		selected_node.position = Vector3(proposed.x-origin_x,proposed.y,proposed.z-origin_z)
 		selected_node.rotation.y = PI/2 if rotated else 0
-	gizmo.visible = false
-	gizmo.position = Vector3(proposed.x-site_width/2,proposed.y+.1,proposed.z-site_depth/2)
+	gizmo.visible = not readonly and not selected.is_empty()
+	update_support_surfaces()
+	update_feedback()
+	gizmo.position = Vector3(proposed.x-origin_x,proposed.y+.1,proposed.z-origin_z)
 	var night := int(state.get("camp_minute",960))>=1080
 	environment.background_color = Color(0,0,0,0)
 	environment.ambient_light_energy = .25 if night else .35
 	sunlight.light_energy = .20 if night else .65
 	sunlight.light_color = Color("a5b9e0") if night else Color("fff0ce")
+
+func to_engine_site(source: Dictionary) -> Dictionary:
+	if source.get("coordinate_system", "godot_y_up") != "z_up": return source
+	var result := source.duplicate(true)
+	var area: Dictionary = result.placement
+	for key in ["min","max"]: area[key] = [area[key][0],area[key][2],area[key][1]]
+	for region in area.blocked:
+		for key in ["min","max"]: region[key] = [region[key][0],region[key][2],region[key][1]]
+	area.ground_y = area.ground_z
+	area.table_y = area.table_z
+	result.coordinate_system = "godot_y_up"
+	return result
+
+func overlay_material(color: String, alpha: float) -> StandardMaterial3D:
+	var result := material(color)
+	result.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	result.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	result.albedo_color.a = alpha
+	return result
+
+func dashed_boundary(parent: Node3D, at: Vector3, extent: Vector2, ink: StandardMaterial3D) -> void:
+	for axis in [0,2]:
+		var length := extent.x if axis == 0 else extent.y
+		var count := maxi(1,ceili(length/.4))
+		for side in [0,1]:
+			for i in range(count):
+				var p := at
+				p[axis] += (i+.3)*length/count
+				p[2 if axis == 0 else 0] += (extent.y if axis == 0 else extent.x)*side
+				var dimensions_value := Vector3(.025,.015,.025)
+				dimensions_value[axis] = length/count*.6
+				var dash := box(parent,dimensions_value,p,"d4e8af")
+				dash.material_override=ink
+				dash.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+func support_info(id: String) -> Dictionary:
+	for item in state.get("item_catalog",[]):
+		if item.id == id and item.has("stackable"): return item
+	return support_config_data.get(id,{"stackable":false})
+
+func support_height(id: String) -> float:
+	return float(field[id].y)+float(support_info(id).get("surface_height",0))
+
+func update_support_surfaces() -> void:
+	for child in support_surfaces.get_children():
+		support_surfaces.remove_child(child)
+		child.queue_free()
+	support_surfaces.visible = not readonly and dragging_item
+	if readonly or not dragging_item: return
+	for id in field:
+		if id == selected or not support_info(id).get("stackable",false): continue
+		var bounds := dimensions(id)
+		if field[id].get("rotated",false): bounds=Vector3(bounds.z,bounds.y,bounds.x)
+		var p: Dictionary=field[id]
+		var patch := box(support_surfaces,Vector3(bounds.x,.008,bounds.z),Vector3(p.x-origin_x,support_height(id)+.012,p.z-origin_z),"e8da8f")
+		patch.material_override=overlay_material("e8da8f",.25)
 
 func rotate_camera(delta: float) -> void:
 	yaw += delta
@@ -256,20 +368,78 @@ func staging_position(index: int) -> Vector3:
 func screen_point(point: Vector3) -> Vector2:
 	return camera.unproject_position(point) * size / Vector2(viewport_3d.size)
 
+func item_screen_rect(node: Node3D) -> Rect2:
+	var sprite: Sprite3D = node.get_child(0)
+	var width := sprite.pixel_size*float(sprite.texture.get_width())*size.x/camera.size
+	return Rect2(screen_point(sprite.global_position)-Vector2.ONE*width/2,Vector2.ONE*width)
+
 func pick_item(point: Vector2) -> String:
 	var best := ""
-	var distance := INF
+	var best_score := INF
 	for node in items_root.get_children():
-		var body = node.get_child(1)
-		var id: String = body.get_meta("item")
-		var center := screen_point(node.position + Vector3(0, dimensions(id).y*.45,0))
-		var extent := screen_point(node.position+Vector3(dimensions(id).x*.5,0,0)).distance_to(screen_point(node.position))
-		var radius := maxf(28, extent)
-		var d := point.distance_to(center)
-		if d <= radius and d < distance:
+		var id: String = node.get_child(1).get_meta("item")
+		var rect := item_screen_rect(node)
+		var pixel_hit := false
+		if rect.has_point(point):
+			if not hit_images.has(id): hit_images[id] = Assets.item_texture(id).get_image()
+			var bitmap: Image = hit_images[id]
+			var pixel := Vector2i((point-rect.position)/rect.size*Vector2(bitmap.get_size()))
+			pixel_hit = bitmap.get_pixelv(pixel).a > .2
+		var center := screen_point(node.position+Vector3(0,dimensions(id).y*.45,0))
+		var distance := point.distance_to(center)
+		if not pixel_hit and distance > 28: continue
+		var score := camera.global_position.distance_to(node.global_position) if pixel_hit else 1000+distance
+		if score < best_score:
 			best = id
-			distance = d
+			best_score = score
 	return best
+
+func validation_reason(id: String, point: Vector3) -> String:
+	if id.is_empty(): return "장비를 선택해 주세요"
+	var bounds := dimensions(id)
+	if point.x-bounds.x/2 < placement.min[0]-.01 or point.x+bounds.x/2 > placement.max[0]+.01 or point.z-bounds.z/2 < placement.min[2]-.01 or point.z+bounds.z/2 > placement.max[2]+.01:
+		return "배치 가능 구역 안으로 옮겨 주세요"
+	for blocked in placement.blocked:
+		if point.x+bounds.x/2 > blocked.min[0] and point.x-bounds.x/2 < blocked.max[0] and point.z+bounds.z/2 > blocked.min[2] and point.z-bounds.z/2 < blocked.max[2]:
+			return str(blocked.name)+"에는 놓을 수 없어요"
+	if point.y > .02:
+		var supported := false
+		for support in field:
+			if support == id or not support_info(support).get("stackable",false): continue
+			var p: Dictionary=field[support]
+			var top:=dimensions(support)
+			if p.get("rotated",false): top=Vector3(top.z,top.y,top.x)
+			if is_equal_approx(point.y,support_height(support)) and absf(point.x-float(p.x))+bounds.x/2 <= top.x/2+.01 and absf(point.z-float(p.z))+bounds.z/2 <= top.z/2+.01: supported=true
+		if not supported: return "올릴 수 있는 받침 위로 옮겨 주세요"
+	if support_info(id).get("stackable",false) and field.has(id):
+		for other in field:
+			if other != id and float(field[other].y) > .02: return "받침 위 물건을 먼저 내려 주세요"
+	for other in field:
+		if other == id or id == "rug" or other == "rug": continue
+		var p: Dictionary = field[other]
+		var q := dimensions(other)
+		if p.get("rotated",false): q = Vector3(q.z,q.y,q.x)
+		if absf(point.x-float(p.x)) < (bounds.x+q.x)/2-.02 and absf(point.z-float(p.z)) < (bounds.z+q.z)/2-.02 and point.y < float(p.y)+q.y-.02 and point.y+bounds.y > float(p.y)+.02:
+			return "다른 장비와 겹쳐요"
+	return ""
+
+func update_feedback() -> void:
+	if footprint == null: return
+	footprint.visible = not readonly and not selected.is_empty()
+	placement_reason = validation_reason(selected, proposed)
+	footprint_material.albedo_color = Color("86d7a0") if placement_reason.is_empty() else Color("ef806e")
+	for child in footprint.get_children():
+		footprint.remove_child(child)
+		child.queue_free()
+	if selected.is_empty(): return
+	var bounds := dimensions(selected)
+	for z in [-bounds.z/2,bounds.z/2]:
+		var line := box(footprint,Vector3(bounds.x,.018,.035),Vector3(0,.025,z),"86d7a0")
+		line.material_override = footprint_material
+	for x in [-bounds.x/2,bounds.x/2]:
+		var line := box(footprint,Vector3(.035,.018,bounds.z),Vector3(x,.025,0),"86d7a0")
+		line.material_override = footprint_material
+	footprint.position = Vector3(proposed.x-origin_x,proposed.y,proposed.z-origin_z)
 
 func ground_point(point: Vector2, height: float) -> Variant:
 	var p := point * Vector2(viewport_3d.size) / size
@@ -285,23 +455,31 @@ func begin_drag(point: Vector2, pointer: int) -> void:
 	press_point = point
 	item_selected.emit(id)
 	grab_offset = point - screen_point(selected_node.position)
+	update_support_surfaces()
+	drag_state_changed.emit()
 
 func move_drag(point: Vector2) -> void:
 	if not dragging_item: return
 	if point.distance_to(press_point) < 4 and not moved_item: return
 	moved_item = true
 	var anchor := point - grab_offset
-	var hit = ground_point(anchor,0)
+	var hit = ground_point(anchor,float(placement.ground_y))
 	if hit == null: return
 	var bounds := dimensions(selected)
-	var value := Vector3(snappedf(hit.x+site_width/2,.25),0,snappedf(hit.z+site_depth/2,.25))
-	value.x = clampf(value.x,bounds.x/2,site_width-bounds.x/2)
-	value.z = clampf(value.z,bounds.z/2,site_depth-bounds.z/2)
-	if selected != "table" and field.has("table") and bounds.x <= 2.1 and bounds.z <= 1.4:
-		var top = ground_point(anchor,.9)
-		var table: Dictionary = field.table
-		if top != null and absf(top.x+site_width/2-float(table.x)) <= 1.05 and absf(top.z+site_depth/2-float(table.z)) <= .7:
-			value = Vector3(clampf(snappedf(top.x+site_width/2,.25),table.x-(2.1-bounds.x)/2,table.x+(2.1-bounds.x)/2),.9,clampf(snappedf(top.z+site_depth/2,.25),table.z-(1.4-bounds.z)/2,table.z+(1.4-bounds.z)/2))
+	var value := Vector3(snappedf(hit.x+origin_x,float(placement.step)),float(placement.ground_y),snappedf(hit.z+origin_z,float(placement.step)))
+	value.x = snappedf(value.x,float(placement.step))
+	value.z = snappedf(value.z,float(placement.step))
+	for support in field:
+		if support == selected or not support_info(support).get("stackable",false): continue
+		var surface: Dictionary=field[support]
+		var top_bounds:=dimensions(support)
+		if surface.get("rotated",false): top_bounds=Vector3(top_bounds.z,top_bounds.y,top_bounds.x)
+		if bounds.x > top_bounds.x or bounds.z > top_bounds.z: continue
+		var height:=support_height(support)
+		var top = ground_point(anchor,height)
+		if top != null and absf(top.x+origin_x-float(surface.x)) <= top_bounds.x/2 and absf(top.z+origin_z-float(surface.z)) <= top_bounds.z/2:
+			value=Vector3(clampf(snappedf(top.x+origin_x,float(placement.step)),surface.x-(top_bounds.x-bounds.x)/2,surface.x+(top_bounds.x-bounds.x)/2),height,clampf(snappedf(top.z+origin_z,float(placement.step)),surface.z-(top_bounds.z-bounds.z)/2,surface.z+(top_bounds.z-bounds.z)/2))
+			break
 	proposed = value
 	position_changed.emit(value)
 
@@ -309,8 +487,15 @@ func end_drag(cancelled: bool = false) -> void:
 	if not dragging_item: return
 	dragging_item = false
 	active_pointer = -2
+	update_support_surfaces()
+	drag_state_changed.emit()
 	if moved_item and not cancelled:
-		item_dropped.emit(selected, proposed)
+		var reason := validation_reason(selected,proposed)
+		if reason.is_empty():
+			item_dropped.emit(selected, proposed)
+		else:
+			item_selected.emit(selected)
+			placement_rejected.emit(reason)
 	elif cancelled:
 		item_selected.emit(selected)
 

@@ -1,8 +1,8 @@
 extends Control
 
 const FONT = preload("res://assets/fonts/NotoSansKR.ttf")
-const DAY = preload("res://assets/pixel/campsite-day.png")
-const NIGHT = preload("res://assets/pixel/campsite-night.png")
+const DAY = preload("res://assets/pixel/campsite-day-terrain.png")
+const NIGHT = preload("res://assets/pixel/campsite-night-terrain.png")
 const CAMPER_SHEET = preload("res://assets/pixel/camper-animations.png")
 const SCENERY_SHADER = preload("res://assets/pixel/campsite.gdshader")
 const UI_INPUT = preload("res://ui/ui_input.gd")

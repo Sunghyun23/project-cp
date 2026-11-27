@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-27",
+  "tool": "imagegen",
+  "mode": "edit",
+  "purpose": "고정 배경 장비와 드래그 가능한 아이템 구분",
+  "sources": [
+    "campsite-day.png",
+    "campsite-night.png",
+    "campsite-pine.png"
+  ],
+  "outputs": [
+    "campsite-day-terrain.png",
+    "campsite-night-terrain.png",
+    "campsite-pine-terrain.png"
+  ],
+  "prompt": "Remove all tents, chair, table, cooking pot, mugs, food, coolbox, rug, lantern, fire ring, logs/fire and artificial glow/shadows. Seamlessly replace with empty matching grass. Preserve framing, terrain, trees, flowers, rocks, fence/bridge, lake/stream, pixel art style and lighting."
+}

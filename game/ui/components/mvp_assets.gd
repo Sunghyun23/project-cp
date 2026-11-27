@@ -1,8 +1,8 @@
 extends RefCounted
 
 const PROPS = preload("res://assets/pixel/camping-props.png")
-const PINE = preload("res://assets/pixel/campsite-pine.png")
-const LAKE = preload("res://assets/pixel/campsite-day.png")
+const PINE = preload("res://assets/pixel/campsite-pine-terrain.png")
+const LAKE = preload("res://assets/pixel/campsite-day-terrain.png")
 const INDICES = {"tent":0, "chair":1, "table":2, "lantern":3, "stove":4, "rug":5}
 static func item_texture(id: String) -> Texture2D:
 	if not INDICES.has(id):

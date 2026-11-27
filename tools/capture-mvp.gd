@@ -16,6 +16,10 @@ func run() -> void:
 	var fixtures = JSON.parse_string(FileAccess.get_file_as_string("/tmp/cp-mvp-fixtures.json"))
 	var snapshot: Dictionary = fixtures[phase].duplicate(true)
 	if "--staged" in OS.get_cmdline_user_args(): snapshot.field = {}
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--place="):
+			snapshot.place=arg.trim_prefix("--place=")
+			snapshot.erase("placement_site")
 	var host := Control.new()
 	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(host)

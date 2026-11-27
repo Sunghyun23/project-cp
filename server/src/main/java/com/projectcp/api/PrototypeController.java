@@ -29,7 +29,7 @@ public class PrototypeController {
         return digest(auth.substring(7));
     }
     record Session(Map<String, Object> state, long version) {}
-    private Map<String, Object> payload(Session session) { return Map.of("state", session.state(), "version", session.version()); }
+    private Map<String, Object> payload(Session session) { return Map.of("state", CampsiteCatalog.enrich(session.state()), "version", session.version()); }
     private static ResponseEntity<?> error(HttpStatus status, String message) { return ResponseEntity.status(status).body(Map.of("error", message)); }
 
     private String digest(String token) {
@@ -60,7 +60,7 @@ public class PrototypeController {
         var state = PrototypeRules.initialState();
         jdbc.sql("INSERT INTO public.prototype_prototypesession (token_hash, state, version, updated_at) VALUES (:hash, CAST(:state AS jsonb), 0, CURRENT_TIMESTAMP)")
                 .param("hash", digest(token)).param("state", json.writeValueAsString(state)).update();
-        return ResponseEntity.status(201).body(Map.of("token", token, "state", state, "version", 0));
+        return ResponseEntity.status(201).body(Map.of("token", token, "state", CampsiteCatalog.enrich(state), "version", 0));
     }
 
     @GetMapping("/api/v1/prototype/state/")
