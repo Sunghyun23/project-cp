@@ -1,0 +1,8 @@
+{
+  "date": "2026-11-27",
+  "tool": "imagegen",
+  "mode": "reference_based_generation",
+  "reference": "camping-props.png",
+  "output": "camping-props-directions.png",
+  "prompt": "Create a production sprite atlas based on the provided six camping props, matching their cozy crisp 2D pixel art, dark pixel outlines, warm cream/wood/ochre/forest palette and object identities. This is a NEW directional sprite sheet. EXACT layout: FOUR columns and SIX rows, equal square cells, 2048x3072 canvas. Row1 tent, row2 chair, row3 table, row4 lantern, row5 camping stove with pot and gas canister, row6 rug. In EACH row the four columns are the SAME object physically rotated on the horizontal ground by 0,90,180,270 degrees, seen from a FIXED elevated three-quarter game camera. Column1 front-right view; column2 right/rear view; column3 rear-left/back view; column4 left/front view. Clearly show backs and sides, especially tent opening moves out of view in rear views, chair seat/back visibly differs. Do NOT rotate/tilt the flat picture in its own plane, do NOT just mirror it. All items remain upright, camera angle and elevation unchanged. For table and rug, longer ground axis switches direction at 90deg; show asymmetrical wood grain/cloth motif orientation. Keep each object's size consistent across its row, centered horizontally, its lowest ground-contact point at 88% of cell height, ample transparent padding. Individual objects only: table empty, chair empty, no environment, no floor, no cast-shadow blobs, no labels/text/grid. Truly transparent RGBA background including all gutters, no matte or checkerboard painted into image. No objects crossing cell boundaries. This is a legible pixel game asset sheet, not a poster or 3D render."
+}

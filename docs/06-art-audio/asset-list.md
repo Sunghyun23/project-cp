@@ -268,3 +268,7 @@ MVP 추가 에셋: `camping-props.png`(2D 장비 6종), `camper-male-rain.png`·
 ## 현장 배치용 빈 배경 — 로컬 시안
 
 `campsite-day-terrain.png`, `campsite-night-terrain.png`, `campsite-pine-terrain.png`: 기존 픽셀 풍경의 고정 텐트·의자·테이블·불 등 장비를 imagegen으로 제거한 파생 배경. 움직일 수 없는 배경 장비와 실제 드래그 아이템의 혼동을 줄인다. 기존 원본은 보존했으며 새 현장 시안에서 사용한다.
+
+## 현장 90도 회전 어셋
+
+`camping-props-directions.png`: 1024×1536 RGBA, 4열×6행, 셀 256×256. 텐트/의자/테이블/랜턴/버너/러그 각각 0·90·180·270도 방향 그림이다. `camping-props-directions-metadata.json`에 프레임별 피벗·불투명 영역·표시 크기를, `camping-props-directions-prompt.json`에 생성 근거를 보관한다. 원본 및 연결 기록은 `art/source/items/camping_props_directions/asset.json`. 현장만 방향 아틀라스를 사용하고 기존 상품/적재 그림은 보존한다. 최종 아트 승인과 Android 실기기 검증은 별도다.

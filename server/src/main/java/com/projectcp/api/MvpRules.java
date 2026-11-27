@@ -23,7 +23,7 @@ final class MvpRules {
     }
     static List<Map<String,Object>> catalog() {
         return ITEMS.entrySet().stream().map(e -> Map.<String,Object>of("id",e.getKey(),"name",e.getValue().name(),
-                "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0))).toList();
+                "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0),"rotation_step_degrees",90,"allowed_rotations",List.of(0,90,180,270))).toList();
     }
     static Map<String,Object> initialState() { return upgrade(PrototypeRules.legacyInitialState()); }
     static Map<String,Object> upgrade(Map<String,Object> current) {
@@ -121,13 +121,31 @@ final class MvpRules {
             case "lantern"->new double[]{.5,1.0,.7};default->new double[]{1.4,.06,2.1};};
         return rotated?new double[]{b[2],b[1],b[0]}:b;
     }
+    static int fieldRotation(Map<String,Object> value) {
+        Object angle=value.get("rotation_degrees");
+        return angle instanceof Number?((Number)angle).intValue():Boolean.TRUE.equals(value.get("rotated"))?90:0;
+    }
+    static boolean quarterTurn(Map<String,Object> value) {return fieldRotation(value)%180!=0;}
+    static int requestedRotation(Map<String,Object> body) {
+        need(body.getOrDefault("rotated",false) instanceof Boolean,"회전 값을 확인해 주세요.");
+        if(!body.containsKey("rotation_degrees"))return fieldRotation(body);
+        Object value=body.get("rotation_degrees");
+        need(value instanceof Integer||value instanceof Long,"회전은 90도 단위로 선택해 주세요.");
+        long angle=((Number)value).longValue();
+        need(angle==0||angle==90||angle==180||angle==270,"회전은 0·90·180·270도만 가능해요.");
+        return (int)angle;
+    }
     @SuppressWarnings("unchecked") static void placeField(Map<String,Object>s,String id,Map<String,Object>body) {
         if ("z_up".equals(body.get("coordinate_system"))) {
             var converted=new LinkedHashMap<>(body);converted.put("y",body.get("z"));converted.put("z",body.get("y"));body=converted;
         } else need(!body.containsKey("coordinate_system"),"좌표 기준을 확인해 주세요.");
         need(ITEMS.containsKey(id)&&!id.equals("meal")&&grid(s,"cargo").containsKey(id),"실어 온 장비만 배치할 수 있어요.");
-        need(body.getOrDefault("rotated",false) instanceof Boolean,"회전 값을 확인해 주세요.");
-        boolean rotated=Boolean.TRUE.equals(body.get("rotated"));double[] b=bounds(id,rotated);
+        int rotation=requestedRotation(body);
+        if(!body.containsKey("rotation_degrees")&&grid(s,"field").get(id) instanceof Map<?,?> old) {
+            @SuppressWarnings("unchecked") var previous=(Map<String,Object>)old;
+            if(rotation%180==fieldRotation(previous)%180)rotation=fieldRotation(previous);
+        }
+        boolean rotated=rotation%180!=0;double[] b=bounds(id,rotated);
         var area=CampsiteCatalog.area((String)s.get("place"));
         double minX=CampsiteCatalog.axis(area,"min",0),minZ=CampsiteCatalog.axis(area,"min",2),width=CampsiteCatalog.axis(area,"max",0),depth=CampsiteCatalog.axis(area,"max",2);
         double x=coordinate(body,"x",minX+b[0]/2,width-b[0]/2),y=coordinate(body,"y",0,3),z=coordinate(body,"z",minZ+b[2]/2,depth-b[2]/2);
@@ -141,7 +159,7 @@ final class MvpRules {
             boolean supported=false;
             for(var entry:field.entrySet()) {
                 if(entry.getKey().equals(id)||!Boolean.TRUE.equals(CampsiteCatalog.surface(entry.getKey()).get("stackable")))continue;
-                var support=(Map<String,Object>)entry.getValue();var top=bounds(entry.getKey(),Boolean.TRUE.equals(support.get("rotated")));
+                var support=(Map<String,Object>)entry.getValue();var top=bounds(entry.getKey(),quarterTurn(support));
                 double height=((Number)support.get("y")).doubleValue()+((Number)CampsiteCatalog.surface(entry.getKey()).get("surface_height")).doubleValue();
                 if(Math.abs(y-height)<.02&&Math.abs(x-((Number)support.get("x")).doubleValue())+b[0]/2<=top[0]/2+.01
                     &&Math.abs(z-((Number)support.get("z")).doubleValue())+b[2]/2<=top[2]/2+.01){supported=true;y=height;break;}
@@ -151,12 +169,12 @@ final class MvpRules {
         if(Boolean.TRUE.equals(CampsiteCatalog.surface(id).get("stackable"))&&field.containsKey(id))need(!hasSupportedItems(field,id),"받침 위 물건을 먼저 내려 주세요.");
         for(var e:field.entrySet()) {
             if(e.getKey().equals(id)||id.equals("rug")||e.getKey().equals("rug"))continue;
-            var p=(Map<String,Object>)e.getValue();var q=bounds(e.getKey(),Boolean.TRUE.equals(p.get("rotated")));
+            var p=(Map<String,Object>)e.getValue();var q=bounds(e.getKey(),quarterTurn(p));
             double px=((Number)p.get("x")).doubleValue(),py=((Number)p.get("y")).doubleValue(),pz=((Number)p.get("z")).doubleValue();
             boolean overlap=Math.abs(x-px)<(b[0]+q[0])/2-.02&&Math.abs(z-pz)<(b[2]+q[2])/2-.02&&y<py+q[1]-.02&&y+b[1]>py+.02;
             need(!overlap,"다른 장비와 겹쳐요. X·Y·Z 위치를 조정해 주세요.");
         }
-        boolean isNew=!field.containsKey(id);field.put(id,new LinkedHashMap<>(Map.of("x",x,"y",y,"z",z,"rotated",rotated)));
+        boolean isNew=!field.containsKey(id);field.put(id,new LinkedHashMap<>(Map.of("x",x,"y",y,"z",z,"rotated",rotated,"rotation_degrees",rotation)));
         if(isNew)spendStamina(s,1);
     }
     @SuppressWarnings("unchecked") static boolean hasSupportedItems(Map<String,Object>field,String id) {

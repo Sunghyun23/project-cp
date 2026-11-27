@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "status": "prototype_integrated",
+  "kind": "directional_sprite_atlas",
+  "image": "game/assets/pixel/camping-props-directions.png",
+  "editable_layers": false,
+  "canvas_size_px": [
+    1024,
+    1536
+  ],
+  "cell_size_px": [
+    256,
+    256
+  ],
+  "angles": [
+    0,
+    90,
+    180,
+    270
+  ],
+  "row_order": [
+    "tent",
+    "chair",
+    "table",
+    "lantern",
+    "stove",
+    "rug"
+  ],
+  "coordinate_system": "z_up",
+  "frame_pivots": "game/assets/pixel/camping-props-directions-metadata.json",
+  "surface_rules": "server/src/main/resources/gameplay/item-surfaces.json",
+  "placement_bounds": "server/src/main/java/com/projectcp/api/MvpRules.java#bounds",
+  "cargo_cells": "server/src/main/java/com/projectcp/api/MvpRules.java#catalog",
+  "provenance": "game/assets/pixel/camping-props-directions-prompt.json",
+  "source_note": "생성 PNG를 게임 원본으로 함께 참조한다. 기존 아틀라스는 보존하며 편집 레이어 원본이 있다고 가정하지 않는다.",
+  "verification": {
+    "four_directions": "passed",
+    "pivot_alignment": "rendered_phone_fold",
+    "server_tests": 24,
+    "android_device": "not_tested"
+  }
+}

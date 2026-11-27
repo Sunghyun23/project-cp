@@ -20,6 +20,10 @@ func run() -> void:
 		if arg.begins_with("--place="):
 			snapshot.place=arg.trim_prefix("--place=")
 			snapshot.erase("placement_site")
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--angle=") and snapshot.get("field",{}).has("chair"):
+			snapshot.field.chair.rotation_degrees=int(arg.trim_prefix("--angle="))
+			snapshot.field.chair.rotated=int(arg.trim_prefix("--angle="))%180!=0
 	var host := Control.new()
 	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(host)

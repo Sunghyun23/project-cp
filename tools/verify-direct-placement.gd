@@ -18,7 +18,7 @@ func run() -> void:
 	ui = Flow.instantiate()
 	root.add_child(ui)
 	ui.use_field_editor(world)
-	ui.action_requested.connect(func(command,choice,extra): sent={"command":command,"id":choice,"point":Vector3(extra.get("x",0),extra.get("z",0),extra.get("y",0))})
+	ui.action_requested.connect(func(command,choice,extra): sent={"command":command,"id":choice,"angle":extra.get("rotation_degrees",0),"point":Vector3(extra.get("x",0),extra.get("z",0),extra.get("y",0))})
 	ui.apply_state(snapshot,false,"",false,false)
 	for i in range(12): await process_frame
 	assert(world.items_root.get_child_count() == snapshot.cargo.size()-1)
@@ -40,10 +40,26 @@ func run() -> void:
 	world.begin_drag(world.screen_point(world.selected_node.position+Vector3(0,.3,0)),-1)
 	world.move_drag(world.screen_point(Vector3(0,0,0)))
 	world.end_drag(true)
+	for angle in [90,180,270,0]:
+		var old_texture: Texture2D=world.selected_node.get_child(0).texture
+		ui.field_rotate.pressed.emit()
+		assert(sent.angle==angle and ui.drop_pending)
+		assert(world.selected_node.get_child(0).texture.region != old_texture.region)
+		accept_drop()
+		assert(ui.field_rotation==angle and not ui.drop_pending)
+	# R 및 패드 Y도 같은 회전 저장을 사용한다.
+	for pad in [false,true]:
+		if pad:
+			var event:=InputEventJoypadButton.new(); event.button_index=JOY_BUTTON_Y; event.pressed=true; Input.parse_input_event(event)
+		else:
+			var event:=InputEventKey.new(); event.physical_keycode=KEY_R; event.pressed=true; Input.parse_input_event(event)
+		await process_frame
+		assert(ui.drop_pending)
+		accept_drop()
 	for dimensions_value in [Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900)]:
 		root.size=dimensions_value
 		for i in range(12): await process_frame
-		var button_rect: Rect2=ui.placement_done.get_rect()
+		var button_rect: Rect2=ui.placement_done.get_global_rect()
 		assert(button_rect.position.x>=0 and button_rect.end.x<=dimensions_value.x)
 		assert(button_rect.position.y>=0 and button_rect.end.y<=dimensions_value.y)
 		var tip: Vector2=world.screen_point(Vector3(ui.field_position.x-world.origin_x,ui.field_position.y+1.8,ui.field_position.z-world.origin_z))
@@ -52,7 +68,7 @@ func run() -> void:
 	world.readonly=true
 	world.configure(ui.state)
 	assert(not world.grid_root.visible and not world.gizmo.visible and not world.footprint.visible and not world.support_surfaces.visible and not ui.placement_done.visible)
-	print("PASS direct placement: all sprites / mouse / touch / ground / tabletop / auto-save / rejected-drop rollback")
+	print("PASS direct placement: four rotations / button+R+pad / directional sprites / drag / support / save / rollback")
 	quit()
 func drag(id: String, target: Vector3, touch: bool) -> void:
 	var node
@@ -70,5 +86,5 @@ func drag(id: String, target: Vector3, touch: bool) -> void:
 		var motion := InputEventMouseMotion.new(); motion.position=end; motion.button_mask=MOUSE_BUTTON_MASK_LEFT; Input.parse_input_event(motion); await process_frame
 		var release := InputEventMouseButton.new(); release.button_index=MOUSE_BUTTON_LEFT; release.position=end; release.pressed=false; Input.parse_input_event(release); await process_frame
 func accept_drop() -> void:
-	snapshot.field[sent.id] = {"x":sent.point.x,"y":sent.point.y,"z":sent.point.z,"rotated":false}
+	snapshot.field[sent.id] = {"x":sent.point.x,"y":sent.point.y,"z":sent.point.z,"rotated":sent.angle%180!=0,"rotation_degrees":sent.angle}
 	ui.apply_state(snapshot,false,"",false,false)

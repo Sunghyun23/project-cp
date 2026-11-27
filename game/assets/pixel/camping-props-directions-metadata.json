@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "image": "camping-props-directions.png",
+  "columns": 4,
+  "rows": 6,
+  "cell_size_px": [
+    256,
+    256
+  ],
+  "angles": [
+    0,
+    90,
+    180,
+    270
+  ],
+  "coordinate_system": "z_up",
+  "items": {
+    "tent": {
+      "row": 0,
+      "sprite_world_width": 2.6,
+      "frames": [
+        {
+          "angle": 0,
+          "pivot_px": [
+            138.0,
+            238
+          ],
+          "opaque_rect_px": [
+            28,
+            43,
+            248,
+            239
+          ]
+        },
+        {
+          "angle": 90,
+          "pivot_px": [
+            129.0,
+            241
+          ],
+          "opaque_rect_px": [
+            30,
+            44,
+            228,
+            242
+          ]
+        },
+        {
+          "angle": 180,
+          "pivot_px": [
+            121.0,
+            243
+          ],
+          "opaque_rect_px": [
+            19,
+            46,
+            223,
+            244
+          ]
+        },
+        {
+          "angle": 270,
+          "pivot_px": [
+            119.0,
+            239
+          ],
+          "opaque_rect_px": [
+            9,
+            43,
+            229,
+            240
+          ]
+        }
+      ]
+    },
+    "chair": {
+      "row": 1,
+      "sprite_world_width": 1.35,
+      "frames": [
+        {
+          "angle": 0,
+          "pivot_px": [
+            141.0,
+            241
+          ],
+          "opaque_rect_px": [
+            50,
+            27,
+            232,
+            242
+          ]
+        },
+        {
+          "angle": 90,
+          "pivot_px": [
+            125.5,
+            241
+          ],
+          "opaque_rect_px": [
+            44,
+            31,
+            207,
+            242
+          ]
+        },
+        {
+          "angle": 180,
+          "pivot_px": [
+            114.5,
+            239
+          ],
+          "opaque_rect_px": [
+            22,
+            32,
+            207,
+            240
+          ]
+        },
+        {
+          "angle": 270,
+          "pivot_px": [
+            114.5,
+            241
+          ],
+          "opaque_rect_px": [
+            22,
+            28,
+            207,
+            242
+          ]
+        }
+      ]
+    },
+    "table": {
+      "row": 2,
+      "sprite_world_width": 2.4,
+      "frames": [
+        {
+          "angle": 0,
+          "pivot_px": [
+            136.0,
+            220
+          ],
+          "opaque_rect_px": [
+            23,
+            62,
+            249,
+            221
+          ]
+        },
+        {
+          "angle": 90,
+          "pivot_px": [
+            128.0,
+            223
+          ],
+          "opaque_rect_px": [
+            47,
+            53,
+            209,
+            224
+          ]
+        },
+        {
+          "angle": 180,
+          "pivot_px": [
+            122.0,
+            223
+          ],
+          "opaque_rect_px": [
+            10,
+            57,
+            234,
+            224
+          ]
+        },
+        {
+          "angle": 270,
+          "pivot_px": [
+            127.5,
+            223
+          ],
+          "opaque_rect_px": [
+            47,
+            52,
+            208,
+            224
+          ]
+        }
+      ]
+    },
+    "lantern": {
+      "row": 3,
+      "sprite_world_width": 1.2,
+      "frames": [
+        {
+          "angle": 0,
+          "pivot_px": [
+            133.0,
+            228
+          ],
+          "opaque_rect_px": [
+            77,
+            30,
+            189,
+            229
+          ]
+        },
+        {
+          "angle": 90,
+          "pivot_px": [
+            129.0,
+            228
+          ],
+          "opaque_rect_px": [
+            78,
+            30,
+            180,
+            229
+          ]
+        },
+        {
+          "angle": 180,
+          "pivot_px": [
+            125.5,
+            228
+          ],
+          "opaque_rect_px": [
+            69,
+            31,
+            182,
+            229
+          ]
+        },
+        {
+          "angle": 270,
+          "pivot_px": [
+            123.5,
+            228
+          ],
+          "opaque_rect_px": [
+            70,
+            30,
+            177,
+            229
+          ]
+        }
+      ]
+    },
+    "stove": {
+      "row": 4,
+      "sprite_world_width": 2.2,
+      "frames": [
+        {
+          "angle": 0,
+          "pivot_px": [
+            133.5,
+            230
+          ],
+          "opaque_rect_px": [
+            55,
+            18,
+            212,
+            231
+          ]
+        },
+        {
+          "angle": 90,
+          "pivot_px": [
+            125.5,
+            230
+          ],
+          "opaque_rect_px": [
+            71,
+            18,
+            180,
+            231
+          ]
+        },
+        {
+          "angle": 180,
+          "pivot_px": [
+            126.5,
+            230
+          ],
+          "opaque_rect_px": [
+            50,
+            18,
+            203,
+            231
+          ]
+        },
+        {
+          "angle": 270,
+          "pivot_px": [
+            123.0,
+            230
+          ],
+          "opaque_rect_px": [
+            69,
+            18,
+            177,
+            231
+          ]
+        }
+      ]
+    },
+    "rug": {
+      "row": 5,
+      "sprite_world_width": 1.8,
+      "frames": [
+        {
+          "angle": 0,
+          "pivot_px": [
+            131.5,
+            195
+          ],
+          "opaque_rect_px": [
+            12,
+            54,
+            251,
+            196
+          ]
+        },
+        {
+          "angle": 90,
+          "pivot_px": [
+            123.5,
+            201
+          ],
+          "opaque_rect_px": [
+            28,
+            43,
+            219,
+            202
+          ]
+        },
+        {
+          "angle": 180,
+          "pivot_px": [
+            127.0,
+            188
+          ],
+          "opaque_rect_px": [
+            8,
+            54,
+            246,
+            189
+          ]
+        },
+        {
+          "angle": 270,
+          "pivot_px": [
+            128.5,
+            200
+          ],
+          "opaque_rect_px": [
+            32,
+            44,
+            225,
+            201
+          ]
+        }
+      ]
+    }
+  }
+}

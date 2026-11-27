@@ -38,6 +38,7 @@ var field: Dictionary = {}
 var state: Dictionary = {}
 var selected := ""
 var proposed := Vector3(4,0,3)
+var proposed_rotation := 0
 var readonly := false
 var scene_key := ""
 var yaw := 0.0
@@ -60,6 +61,13 @@ var rain_shapes: Array[MeshInstance3D] = []
 
 static func dimensions(id: String) -> Vector3:
 	return {"tent":Vector3(2.1,1.8,1.4), "table":Vector3(2.1,.9,1.4), "chair":Vector3(1,1.2,1), "stove":Vector3(1.4,.65,.7), "lantern":Vector3(.5,1,.7), "rug":Vector3(1.4,.06,2.1)}.get(id, Vector3.ONE)
+
+static func rotation_of(value: Dictionary) -> int:
+	return int(value.get("rotation_degrees",90 if value.get("rotated",false) else 0))
+
+static func oriented_dimensions(id: String, angle: int) -> Vector3:
+	var bounds := dimensions(id)
+	return Vector3(bounds.z,bounds.y,bounds.x) if angle%180 != 0 else bounds
 
 func material(color: String, glowing: bool = false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -92,18 +100,21 @@ func cylinder(parent: Node3D, radius: float, height: float, at: Vector3, color: 
 	shape.radial_segments = 8
 	return mesh(parent, shape, at, color)
 
-func model(id: String) -> Node3D:
+func model(id: String, angle: int = 0) -> Node3D:
 	var node := Node3D.new()
 	var sprite := Sprite3D.new()
-	sprite.texture = Assets.item_texture(id)
+	sprite.texture = Assets.field_texture(id,angle)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.shaded = false
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	var width: float = {"tent":2.6,"chair":1.35,"table":2.125,"lantern":1.05,"stove":1.25,"rug":1.8}.get(id,1.5)
-	var foot: float = {"tent":.888671875,"chair":.89453125,"table":.8515625,"lantern":.796875,"stove":.8828125,"rug":.76171875}.get(id,.9)
+	node.set_meta("rotation_degrees",angle)
+	var width := Assets.field_sprite_width(id)
+	var pivot := Assets.field_pivot(id,angle)
 	sprite.pixel_size = width/float(sprite.texture.get_width())
-	sprite.position.y = width*(foot-.5)
+	var height := sprite.pixel_size*float(sprite.texture.get_height())
+	# Billboard의 화면 위쪽으로 보정해 실제 발점이 배치 좌표에 고정된다.
+	sprite.position = camera.global_basis.x*width*(.5-pivot.x)+camera.global_basis.y*height*(pivot.y-.5)
 	node.add_child(sprite)
 	# 그림은 2D이며, 보이지 않는 3D 범위로 선택·겹침·지지 여부를 판정한다.
 	var body := StaticBody3D.new()
@@ -111,7 +122,7 @@ func model(id: String) -> Node3D:
 	body.set_meta("item",id)
 	var collider := CollisionShape3D.new()
 	var bounds := BoxShape3D.new()
-	bounds.size = dimensions(id)
+	bounds.size = oriented_dimensions(id,angle)
 	collider.shape = bounds
 	collider.position.y = bounds.size.y/2
 	body.add_child(collider)
@@ -198,13 +209,14 @@ func _ready() -> void:
 		if dragging_item: end_drag(true)
 		if not state.is_empty(): configure(state,selected,proposed))
 
-func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,3), rotated: bool = false) -> void:
+func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,3), rotation_degrees: int = 0) -> void:
 	if readonly and dragging_item:
 		dragging_item = false
 		active_pointer = -2
 	state = value
 	selected = id
 	proposed = point
+	proposed_rotation = rotation_degrees
 	if world == null:
 		return
 	mouse_filter = Control.MOUSE_FILTER_IGNORE if readonly else Control.MOUSE_FILTER_STOP
@@ -254,7 +266,7 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 			dashed_boundary(grid_root,at,Vector2(blocked.max[0]-blocked.min[0],blocked.max[2]-blocked.min[2]),overlay_material("e99882",.7))
 	grid_root.visible = not readonly
 	field = state.get("field", {})
-	var key := JSON.stringify([field,selected,rotated,state.get("cargo",{}).keys(),readonly])
+	var key := JSON.stringify([field,selected,proposed_rotation,state.get("cargo",{}).keys(),readonly])
 	if scene_key != key:
 		scene_key = key
 		for child in items_root.get_children():
@@ -262,10 +274,9 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 			child.queue_free()
 		selected_node = null
 		for item in field:
-			var node := model(item)
+			var node := model(item,proposed_rotation if item == selected else rotation_of(field[item]))
 			var p: Dictionary = field[item]
 			node.position = Vector3(float(p.x)-origin_x,float(p.y),float(p.get("z",0))-origin_z)
-			node.rotation.y = PI/2 if p.get("rotated",false) else 0
 			items_root.add_child(node)
 			if item == selected: selected_node = node
 		if not readonly:
@@ -273,7 +284,7 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 			for item in state.get("cargo", {}):
 				if item == "meal": continue
 				if not field.has(item):
-					var node := model(item)
+					var node := model(item,proposed_rotation if item == selected else 0)
 					var start := staging_position(index)
 					node.position = Vector3(start.x-origin_x,0,start.z-origin_z)
 					node.get_child(0).alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
@@ -283,7 +294,6 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 				index += 1
 	if selected_node != null:
 		selected_node.position = Vector3(proposed.x-origin_x,proposed.y,proposed.z-origin_z)
-		selected_node.rotation.y = PI/2 if rotated else 0
 	gizmo.visible = not readonly and not selected.is_empty()
 	update_support_surfaces()
 	update_feedback()
@@ -344,8 +354,7 @@ func update_support_surfaces() -> void:
 	if readonly or not dragging_item: return
 	for id in field:
 		if id == selected or not support_info(id).get("stackable",false): continue
-		var bounds := dimensions(id)
-		if field[id].get("rotated",false): bounds=Vector3(bounds.z,bounds.y,bounds.x)
+		var bounds := oriented_dimensions(id,rotation_of(field[id]))
 		var p: Dictionary=field[id]
 		var patch := box(support_surfaces,Vector3(bounds.x,.008,bounds.z),Vector3(p.x-origin_x,support_height(id)+.012,p.z-origin_z),"e8da8f")
 		patch.material_override=overlay_material("e8da8f",.25)
@@ -370,8 +379,8 @@ func screen_point(point: Vector3) -> Vector2:
 
 func item_screen_rect(node: Node3D) -> Rect2:
 	var sprite: Sprite3D = node.get_child(0)
-	var width := sprite.pixel_size*float(sprite.texture.get_width())*size.x/camera.size
-	return Rect2(screen_point(sprite.global_position)-Vector2.ONE*width/2,Vector2.ONE*width)
+	var extent := Vector2(sprite.texture.get_width(),sprite.texture.get_height())*sprite.pixel_size*size.x/camera.size
+	return Rect2(screen_point(sprite.global_position)-extent/2,extent)
 
 func pick_item(point: Vector2) -> String:
 	var best := ""
@@ -381,8 +390,9 @@ func pick_item(point: Vector2) -> String:
 		var rect := item_screen_rect(node)
 		var pixel_hit := false
 		if rect.has_point(point):
-			if not hit_images.has(id): hit_images[id] = Assets.item_texture(id).get_image()
-			var bitmap: Image = hit_images[id]
+			var key := id+str(node.get_meta("rotation_degrees",0))
+			if not hit_images.has(key): hit_images[key] = node.get_child(0).texture.get_image()
+			var bitmap: Image = hit_images[key]
 			var pixel := Vector2i((point-rect.position)/rect.size*Vector2(bitmap.get_size()))
 			pixel_hit = bitmap.get_pixelv(pixel).a > .2
 		var center := screen_point(node.position+Vector3(0,dimensions(id).y*.45,0))
@@ -396,7 +406,7 @@ func pick_item(point: Vector2) -> String:
 
 func validation_reason(id: String, point: Vector3) -> String:
 	if id.is_empty(): return "장비를 선택해 주세요"
-	var bounds := dimensions(id)
+	var bounds := oriented_dimensions(id,proposed_rotation if id == selected else rotation_of(field.get(id,{})))
 	if point.x-bounds.x/2 < placement.min[0]-.01 or point.x+bounds.x/2 > placement.max[0]+.01 or point.z-bounds.z/2 < placement.min[2]-.01 or point.z+bounds.z/2 > placement.max[2]+.01:
 		return "배치 가능 구역 안으로 옮겨 주세요"
 	for blocked in placement.blocked:
@@ -407,8 +417,7 @@ func validation_reason(id: String, point: Vector3) -> String:
 		for support in field:
 			if support == id or not support_info(support).get("stackable",false): continue
 			var p: Dictionary=field[support]
-			var top:=dimensions(support)
-			if p.get("rotated",false): top=Vector3(top.z,top.y,top.x)
+			var top:=oriented_dimensions(support,rotation_of(p))
 			if is_equal_approx(point.y,support_height(support)) and absf(point.x-float(p.x))+bounds.x/2 <= top.x/2+.01 and absf(point.z-float(p.z))+bounds.z/2 <= top.z/2+.01: supported=true
 		if not supported: return "올릴 수 있는 받침 위로 옮겨 주세요"
 	if support_info(id).get("stackable",false) and field.has(id):
@@ -417,8 +426,7 @@ func validation_reason(id: String, point: Vector3) -> String:
 	for other in field:
 		if other == id or id == "rug" or other == "rug": continue
 		var p: Dictionary = field[other]
-		var q := dimensions(other)
-		if p.get("rotated",false): q = Vector3(q.z,q.y,q.x)
+		var q := oriented_dimensions(other,rotation_of(p))
 		if absf(point.x-float(p.x)) < (bounds.x+q.x)/2-.02 and absf(point.z-float(p.z)) < (bounds.z+q.z)/2-.02 and point.y < float(p.y)+q.y-.02 and point.y+bounds.y > float(p.y)+.02:
 			return "다른 장비와 겹쳐요"
 	return ""
@@ -432,7 +440,7 @@ func update_feedback() -> void:
 		footprint.remove_child(child)
 		child.queue_free()
 	if selected.is_empty(): return
-	var bounds := dimensions(selected)
+	var bounds := oriented_dimensions(selected,proposed_rotation)
 	for z in [-bounds.z/2,bounds.z/2]:
 		var line := box(footprint,Vector3(bounds.x,.018,.035),Vector3(0,.025,z),"86d7a0")
 		line.material_override = footprint_material
@@ -465,15 +473,14 @@ func move_drag(point: Vector2) -> void:
 	var anchor := point - grab_offset
 	var hit = ground_point(anchor,float(placement.ground_y))
 	if hit == null: return
-	var bounds := dimensions(selected)
+	var bounds := oriented_dimensions(selected,proposed_rotation)
 	var value := Vector3(snappedf(hit.x+origin_x,float(placement.step)),float(placement.ground_y),snappedf(hit.z+origin_z,float(placement.step)))
 	value.x = snappedf(value.x,float(placement.step))
 	value.z = snappedf(value.z,float(placement.step))
 	for support in field:
 		if support == selected or not support_info(support).get("stackable",false): continue
 		var surface: Dictionary=field[support]
-		var top_bounds:=dimensions(support)
-		if surface.get("rotated",false): top_bounds=Vector3(top_bounds.z,top_bounds.y,top_bounds.x)
+		var top_bounds:=oriented_dimensions(support,rotation_of(surface))
 		if bounds.x > top_bounds.x or bounds.z > top_bounds.z: continue
 		var height:=support_height(support)
 		var top = ground_point(anchor,height)

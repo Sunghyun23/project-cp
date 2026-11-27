@@ -20,6 +20,9 @@ var check_required := false
 var signature := ""
 var selected_item := ""
 var item_rotated := false
+var field_rotation := 0
+var placement_controls: VBoxContainer
+var field_rotate: Button
 var show_forecast := false
 var elapsed := 0.0
 var toolbar: HBoxContainer
@@ -144,11 +147,19 @@ func _ready() -> void:
 	placement_commit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	placement_commit.pressed.connect(commit_field)
 	placement_actions.add_child(placement_commit)
+	placement_controls = VBoxContainer.new()
+	placement_controls.add_theme_constant_override("separation",8)
+	add_child(placement_controls)
+	field_rotate = Action.instantiate()
+	field_rotate.text = "회전 90°"
+	field_rotate.custom_minimum_size = Vector2(112,56)
+	field_rotate.pressed.connect(rotate_field)
+	placement_controls.add_child(field_rotate)
 	placement_done = Action.instantiate()
 	placement_done.text = "배치 완료"
 	placement_done.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	placement_done.pressed.connect(func(): act("setup_done"))
-	add_child(placement_done)
+	placement_controls.add_child(placement_done)
 	placement_done.custom_minimum_size = Vector2(144,56)
 	update_placement_visibility()
 	resized.connect(fit)
@@ -203,7 +214,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	if must_check: tools_hidden = false
 	update_placement_visibility()
 	var saved_drop: Dictionary = state.get("field",{}).get(selected_item,{})
-	var drop_matches := not saved_drop.is_empty() and Vector3(float(saved_drop.get("x",0)),float(saved_drop.get("y",0)),float(saved_drop.get("z",0))).is_equal_approx(field_position)
+	var drop_matches := not saved_drop.is_empty() and Vector3(float(saved_drop.get("x",0)),float(saved_drop.get("y",0)),float(saved_drop.get("z",0))).is_equal_approx(field_position) and Editor3D.rotation_of(saved_drop) == field_rotation
 	if drop_pending and not request_busy and (drop_matches or not message.is_empty() or phase() != "setup"):
 		drop_pending = false
 		placement_error = message if not message.begins_with("서버 저장 완료") else ""
@@ -241,7 +252,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	placement_message.visible = not placement_message.text.is_empty()
 	if field_editor != null:
 		field_editor.interaction_locked = locked or drop_pending
-		field_editor.configure(state, selected_item if phase() == "setup" else "", field_position, item_rotated)
+		field_editor.configure(state, selected_item if phase() == "setup" else "", field_position, field_rotation)
 		update_placement_caption()
 	if board != null:
 		update_grid()
@@ -410,7 +421,7 @@ func use_field_editor(editor) -> void:
 			field_coordinates[0].set_value_no_signal(point.x)
 			field_coordinates[1].set_value_no_signal(point.z)
 		if is_instance_valid(field_height): field_height.select(1 if point.y > .1 else 0)
-		field_editor.configure(state,selected_item,field_position,item_rotated)
+		field_editor.configure(state,selected_item,field_position,field_rotation)
 		update_placement_caption())
 
 	field_editor.placement_rejected.connect(func(reason: String):
@@ -423,36 +434,63 @@ func use_field_editor(editor) -> void:
 		field_position = point
 		drop_pending = true
 		field_editor.interaction_locked = true
-		act("place_item",id,{"x":point.x,"y":point.z,"z":point.y,"rotated":false,"coordinate_system":"z_up"}))
+		act("place_item",id,{"x":point.x,"y":point.z,"z":point.y,"rotated":field_rotation%180!=0,"rotation_degrees":field_rotation,"coordinate_system":"z_up"}))
 
 func update_placement_visibility() -> void:
 	if dock == null or placement_bar == null: return
 	var placing := phase() == "setup"
 	dock.visible = not placing or not tools_hidden or show_forecast
 	placement_bar.visible = placing and tools_hidden and not show_forecast
+	placement_controls.visible = placement_bar.visible
 	placement_done.visible = placement_bar.visible
 	tools_button.text = "장비" if tools_hidden else "닫기"
 
 func update_placement_caption() -> void:
 	if phase() != "setup" or field_editor == null: return
 	placement_done.disabled = locked or drop_pending or field_editor.dragging_item
+	field_rotate.disabled = placement_done.disabled or selected_item.is_empty()
 	var reason: String = placement_error if not placement_error.is_empty() else field_editor.placement_reason
 	var hint := "저장 중…" if drop_pending else "끌어서 배치 · 초록이면 놓을 수 있어요" if reason.is_empty() else reason
-	placement_message.text = "%s · X %.2f  Y %.2f  Z %.2f\n%s" % [item_name(selected_item),field_position.x,field_position.z,field_position.y,hint]
+	placement_message.text = "%s · %d°\nX %.2f · Y %.2f · Z %.2f\n%s" % [item_name(selected_item),field_rotation,field_position.x,field_position.z,field_position.y,hint]
 	fit.call_deferred()
 
 func update_placement_action_position() -> void:
 	if field_editor == null or placement_done == null or not placement_done.visible: return
-	placement_done.size = placement_done.get_combined_minimum_size()
+	placement_controls.size = placement_controls.get_combined_minimum_size()
 	var at: Vector2 = field_editor.screen_point(Vector3(field_position.x-field_editor.origin_x,field_position.y+1.95,field_position.z-field_editor.origin_z))
-	var target: Vector2 = at-Vector2(placement_done.size.x/2,placement_done.size.y+12)
-	placement_done.position=Vector2(clampf(target.x,12,maxf(12,size.x-placement_done.size.x-12)),clampf(target.y,12,maxf(12,size.y-placement_done.size.y-12)))
+	var target: Vector2 = at-Vector2(placement_controls.size.x/2,placement_controls.size.y+12)
+	placement_controls.position=Vector2(clampf(target.x,12,maxf(12,size.x-placement_controls.size.x-12)),clampf(target.y,12,maxf(12,size.y-placement_controls.size.y-12)))
+
+func rotate_field() -> void:
+	if phase() != "setup" or locked or drop_pending or field_editor == null or field_editor.dragging_item or selected_item.is_empty(): return
+	var previous := field_rotation
+	field_rotation = (field_rotation+90)%360
+	field_editor.configure(state,selected_item,field_position,field_rotation)
+	var reason: String = field_editor.validation_reason(selected_item,field_position)
+	if not reason.is_empty():
+		field_rotation = previous
+		field_editor.configure(state,selected_item,field_position,field_rotation)
+		placement_error = reason + " · 위치를 옮긴 뒤 회전해 주세요"
+		update_placement_caption()
+		return
+	placement_error = ""
+	commit_field()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if phase() != "setup": return
+	var rotate_key: bool = event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_R
+	var rotate_pad: bool = event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_Y
+	if rotate_key or rotate_pad:
+		rotate_field()
+		get_viewport().set_input_as_handled()
 
 func commit_field() -> void:
-	if selected_item.is_empty(): return
+	if selected_item.is_empty() or locked or drop_pending: return
+	drop_pending = true
+	field_editor.interaction_locked = true
 	tools_hidden = true
 	update_placement_visibility()
-	act("place_item",selected_item,{"x":field_position.x,"y":field_position.z,"z":field_position.y,"rotated":false,"coordinate_system":"z_up"})
+	act("place_item",selected_item,{"x":field_position.x,"y":field_position.z,"z":field_position.y,"rotated":field_rotation%180!=0,"rotation_degrees":field_rotation,"coordinate_system":"z_up"})
 
 func build_field_3d() -> void:
 	selected_ids = state.cargo.keys()
@@ -464,13 +502,13 @@ func build_field_3d() -> void:
 		if state.field.has(selected_item):
 			var p: Dictionary = state.field[selected_item]
 			field_position = Vector3(float(p.x),float(p.y),float(p.z))
-			item_rotated = p.get("rotated",false)
+			field_rotation = Editor3D.rotation_of(p)
 		else:
 			var index := maxi(0,selected_ids.find(selected_item))
 			field_position = field_editor.staging_position(index) if field_editor != null else Vector3(1.25+(index%3)*2.25,0,(2.3 if state.place == "pine" else 1.0)+(index/3)*2.3)
-			item_rotated = false
+			field_rotation = 0
 	if field_editor != null:
-		field_editor.configure(state,selected_item,field_position,item_rotated)
+		field_editor.configure(state,selected_item,field_position,field_rotation)
 	content.add_child(label("물건을 직접 잡아 끌어 배치해요. 손을 놓으면 저장됩니다."))
 	content.add_child(label("선택한 장비 · " + item_name(selected_item)))
 	button(content, "선택한 장비를 차로", "remove_item", selected_item, state.field.has(selected_item))

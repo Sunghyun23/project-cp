@@ -71,6 +71,32 @@ class MvpApiTest {
         for(String id:List.of("tent","chair","stove","lantern","rug"))assertEquals(false,CampsiteCatalog.surface(id).get("stackable"));
         assertEquals(400,call("POST","actions/",p.token,Map.of("command","place_item","choice","stove","version",p.saved.get("version"),"x",4.0,"y",2.0,"z",.5,"coordinate_system","z_up")).status());
     }
+    @Test void fourFieldDirectionsRoundTripAndLegacyMovesPreserveDirection()throws Exception {
+        var p=new Player();p.prepare(false);p.place("tent",0,0,false);p.expire();
+        for(int angle:List.of(0,90,180,270)) {
+            p.act("place_item","tent",Map.of("x",3.0,"y",3.0,"z",0.0,"coordinate_system","z_up","rotation_degrees",angle));
+            var pose=(Map<?,?>)((Map<?,?>)p.s().get("field")).get("tent");
+            assertEquals(angle,pose.get("rotation_degrees"));assertEquals(angle%180!=0,pose.get("rotated"));
+            assertEquals(p.saved,call("GET","state/",p.token,null).data());
+        }
+        p.act("place_item","tent",Map.of("x",3.25,"y",0.0,"z",3.0,"rotated",true));
+        assertEquals(270,((Map<?,?>)((Map<?,?>)p.s().get("field")).get("tent")).get("rotation_degrees"));
+        var before=p.saved;
+        for(Object angle:List.of(45,-90,360,90.0,"90",false))assertEquals(400,call("POST","actions/",p.token,Map.of("command","place_item","choice","tent","version",p.saved.get("version"),"x",3,"y",0,"z",3,"rotation_degrees",angle)).status());
+        assertEquals(before,call("GET","state/",p.token,null).data());
+    }
+    @Test void quarterTurnChecksBoundsAndRotatedSupportSurface() {
+        var s=MvpRules.initialState();s.put("phase","setup");s.put("place","lake");s.put("cargo",Map.of("tent",Map.of(),"table",Map.of(),"stove",Map.of()));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(s,"place_item","tent",Map.of("x",.8,"y",0,"z",2,"rotation_degrees",0)));
+        var turned=MvpRules.transition(s,"place_item","tent",Map.of("x",.8,"y",0,"z",2,"rotation_degrees",90));
+        assertEquals(90,((Map<?,?>)((Map<?,?>)turned.get("field")).get("tent")).get("rotation_degrees"));
+        var table=MvpRules.transition(s,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",90));
+        var stacked=MvpRules.transition(table,"place_item","stove",Map.of("x",5,"y",.9,"z",3.6,"rotation_degrees",0));
+        assertTrue(((Map<?,?>)stacked.get("field")).containsKey("stove"));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(stacked,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",180)));
+        var straight=MvpRules.transition(s,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",0));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(straight,"place_item","stove",Map.of("x",5,"y",.9,"z",3.6,"rotation_degrees",0)));
+    }
     @Test void completeTripConsumesFoodLosesOnlyUnpackedReturnGearAndPersists()throws Exception {
         var p=new Player();p.prepare(true);p.place("tent",0,0,false);p.place("stove",3,0,false);p.place("chair",3,1,false);p.place("meal",5,4,false);
         p.expire();assertEquals("setup",p.s().get("phase"));
