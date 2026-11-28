@@ -73,7 +73,7 @@
   "review": {
     "image": "생성 원본 확인: 장비 없는 야간 숲, 기존 구도 유지",
     "coordinate_alignment": "기존 배치 데이터 유지. 동일 캔버스·구도 및 폰/폴드/PC 실행 화면 확인. 새 픽셀 대응점은 미측정.",
-    "runtime_link": "main.gd 및 capture-mvp.gd에서 낮/밤 이미지 선택",
+    "runtime_link": "공개 웹 배포 완료: 1ca0c7f, build-info/deployment 일치 및 게임 파일 HTTP 200 확인",
     "phone": "macOS Compatibility GPU 390x844 렌더링 확인",
     "fold": "macOS Compatibility GPU 820x920 렌더링 확인",
     "pc": "macOS Compatibility GPU 1280x900 렌더링 확인",
