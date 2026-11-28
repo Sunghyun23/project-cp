@@ -293,7 +293,7 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 		if not readonly:
 			var index := 0
 			for item in state.get("cargo", {}):
-				if item == "meal": continue
+				if item in ["meal","rainwear"]: continue
 				if not field.has(item):
 					var node := model(item,proposed_rotation if item == selected else 0)
 					var start := staging_position(index)

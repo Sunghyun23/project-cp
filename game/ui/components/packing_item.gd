@@ -11,7 +11,7 @@ var packed := false
 
 func _ready() -> void:
 	var title:=Label.new()
-	title.text=caption.replace("라면 재료","라면")
+	title.text=caption.replace("라면 재료","라면").replace("방수 겉옷","우비")
 	title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	title.position=Vector2(0,78)
 	title.size=Vector2(custom_minimum_size.x,26)
@@ -27,7 +27,7 @@ func _draw() -> void:
 		draw_string(get_theme_default_font(),Vector2(6,20),"✓",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("fff7df"))
 	var texture:=Assets.item_texture(item_id)
 	if texture: draw_texture_rect(texture,Rect2(Vector2((size.x-44)/2,2),Vector2(44,44)),false)
-	else: draw_string(get_theme_default_font(),Vector2(20,36),"음식",HORIZONTAL_ALIGNMENT_LEFT,-1,18)
+	else: draw_string(get_theme_default_font(),Vector2(20,36),"우비" if item_id == "rainwear" else "음식",HORIZONTAL_ALIGNMENT_LEFT,-1,18)
 	var shape: Array=[]
 	for cell in footprint_cells:
 		shape.append(Vector2i(cell[0],cell[1]))

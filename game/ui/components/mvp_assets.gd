@@ -8,7 +8,7 @@ const LAKE = preload("res://assets/pixel/campsite-day-terrain.png")
 const DIRECTIONAL_PROPS = preload("res://assets/pixel/camping-props-directions.png")
 static var directional_meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/pixel/camping-props-directions-metadata.json"))
 const INDICES = {"tent":0, "chair":1, "table":2, "lantern":3, "stove":4, "rug":5}
-const CARGO_COLORS = {"tent":"b96349", "chair":"556ca2", "table":"917047", "lantern":"96753a", "stove":"4e7d75", "rug":"8e5d83", "meal":"667e46"}
+const CARGO_COLORS = {"tent":"b96349", "chair":"556ca2", "table":"917047", "lantern":"96753a", "stove":"4e7d75", "rug":"8e5d83", "meal":"667e46", "rainwear":"4f6f97"}
 
 static func cargo_color(id: String) -> Color:
 	return Color(CARGO_COLORS.get(id, "72856b"))

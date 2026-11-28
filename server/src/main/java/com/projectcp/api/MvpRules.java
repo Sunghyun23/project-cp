@@ -6,15 +6,18 @@ import java.util.*;
 final class MvpRules {
     private MvpRules() {}
     record Item(String name, int price, int[][] cells) {}
+    static final int PARCEL_FEE=5;
+    static final List<String> STARTER_GEAR=List.of("tent","stove","chair");
     static final Map<String,Item> ITEMS = new LinkedHashMap<>();
     static {
-        ITEMS.put("tent", new Item("텐트", 35, new int[][]{{0,0},{1,0},{2,0},{0,1},{1,1}}));
-        ITEMS.put("stove", new Item("버너", 20, rect(2,1)));
-        ITEMS.put("chair", new Item("의자", 20, new int[][]{{0,0},{0,1},{1,1}}));
+        ITEMS.put("tent", new Item("낡은 텐트", 35, new int[][]{{0,0},{1,0},{2,0},{0,1},{1,1}}));
+        ITEMS.put("stove", new Item("기본 버너", 20, rect(2,1)));
+        ITEMS.put("chair", new Item("접이식 의자", 20, new int[][]{{0,0},{0,1},{1,1}}));
         ITEMS.put("table", new Item("테이블", 30, new int[][]{{0,0},{1,0},{2,0},{1,1}}));
         ITEMS.put("lantern", new Item("랜턴", 25, rect(1,2)));
         ITEMS.put("rug", new Item("러그", 18, new int[][]{{0,0},{0,1},{1,1},{1,2}}));
-        ITEMS.put("meal", new Item("라면 재료", 20, rect(1,1)));
+        ITEMS.put("meal", new Item("라면 재료", 5, rect(1,1)));
+        ITEMS.put("rainwear", new Item("방수 겉옷", 0, rect(1,1)));
     }
     static int[][] rect(int w,int h) {
         var cells=new int[w*h][2];int i=0;
@@ -25,17 +28,23 @@ final class MvpRules {
         return ITEMS.entrySet().stream().map(e -> Map.<String,Object>of("id",e.getKey(),"name",e.getValue().name(),
                 "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"can_place_on_table",Boolean.TRUE.equals(CampsiteCatalog.surface(e.getKey()).get("can_place_on_table")),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0),"rotation_step_degrees",90,"allowed_rotations",List.of(0,90,180,270))).toList();
     }
-    static Map<String,Object> initialState() { return upgrade(PrototypeRules.legacyInitialState()); }
+    static Map<String,Object> initialState() {
+        var s=upgrade(PrototypeRules.legacyInitialState());
+        owned(s).add("chair");
+        s.put("starter_pack",STARTER_GEAR);
+        s.put("outfit_auto",true);
+        return s;
+    }
     static Map<String,Object> upgrade(Map<String,Object> current) {
         var s=PrototypeRules.copy(current);
         s.put("mvp_version",1);s.put("item_catalog",catalog());
         var inventory=new ArrayList<>(List.of("tent","stove"));
-        if(current.get("packed") instanceof List<?> packed)for(Object id:packed)if(id instanceof String name&&ITEMS.containsKey(name)&&!name.equals("meal")&&!inventory.contains(name))inventory.add(name);
+        if(current.get("packed") instanceof List<?> packed)for(Object id:packed)if(id instanceof String name&&ITEMS.containsKey(name)&&!Set.of("meal","rainwear").contains(name)&&!inventory.contains(name))inventory.add(name);
         s.put("owned",inventory);
         s.put("cargo",new LinkedHashMap<>());s.put("field",new LinkedHashMap<>());
         s.put("place","");s.put("outfit","basic");s.put("camp_day",0);s.put("camp_minute",960);
         s.put("pack_remaining_ms",45000);s.put("pack_started",false);s.put("pack_finished",false);
-        s.put("packing_result",new ArrayList<>());s.put("lost",new ArrayList<>());
+        s.put("packing_result",new ArrayList<>());s.put("parcel_box",new ArrayList<>());
         s.put("meal_owned",false);s.put("cooked",false);s.put("eaten",false);s.put("cooking",0);
         s.put("rested",false);s.put("camp_elapsed_ms",0);s.put("status_note","");
         s.put("week_start_money",s.get("money"));s.put("week_spent",0);s.put("week_income",0);
@@ -54,6 +63,24 @@ final class MvpRules {
     }
     @SuppressWarnings("unchecked") static List<String> owned(Map<String,Object>s){return (List<String>)s.get("owned");}
     @SuppressWarnings("unchecked") static Map<String,Object> grid(Map<String,Object>s,String key){return (Map<String,Object>)s.get(key);}
+    static List<String> parcels(Map<String,Object> s) {
+        var items=new ArrayList<String>();
+        if(s.getOrDefault("parcel_box",s.get("lost")) instanceof List<?> saved)
+            for(Object id:saved)
+                if(id instanceof String gear && ITEMS.containsKey(gear) && !gear.equals("meal")
+                        && !owned(s).contains(gear) && !items.contains(gear))items.add(gear);
+        return items;
+    }
+
+    static void applyWeatherOutfit(Map<String,Object> s) {
+        if(Boolean.TRUE.equals(s.get("outfit_auto")))s.put("outfit",weather(s).equals("rain")&&hasRainwear(s)?"rain":"basic");
+    }
+
+    static boolean hasRainwear(Map<String,Object> s) {
+        return !Boolean.TRUE.equals(s.get("weather_cargo"))
+                || !camping((String)s.get("phase")) || grid(s,"cargo").containsKey("rainwear");
+    }
+
     static int n(Map<String,Object>s,String k){return ((Number)s.get(k)).intValue();}
     static void add(Map<String,Object>s,String k,int delta){s.put(k,n(s,k)+delta);}
     static void need(boolean condition,String message){if(!condition)throw new IllegalArgumentException(message);}
@@ -63,7 +90,10 @@ final class MvpRules {
             @SuppressWarnings("unchecked") var candidates=(List<String>)s.get("return_candidates");
             return new ArrayList<>(candidates);
         }
-        var result=new ArrayList<>(owned(s));if(Boolean.TRUE.equals(s.get("meal_owned")))result.add("meal");return result;
+        var result=new ArrayList<>(owned(s));
+        if(Boolean.TRUE.equals(s.get("meal_owned")))result.add("meal");
+        if(Boolean.TRUE.equals(s.get("weather_cargo"))&&!parcels(s).contains("rainwear"))result.add("rainwear");
+        return result;
     }
     static String weather(Map<String,Object>s) {
         var days=forecast(n(s,"week"));return (String)days.get(n(s,"camp_day")==0?5:6).get("weather");
@@ -150,7 +180,7 @@ final class MvpRules {
         if ("z_up".equals(body.get("coordinate_system"))) {
             var converted=new LinkedHashMap<>(body);converted.put("y",body.get("z"));converted.put("z",body.get("y"));body=converted;
         } else need(!body.containsKey("coordinate_system"),"좌표 기준을 확인해 주세요.");
-        need(ITEMS.containsKey(id)&&!id.equals("meal")&&grid(s,"cargo").containsKey(id),"실어 온 장비만 배치할 수 있어요.");
+        need(ITEMS.containsKey(id)&&!Set.of("meal","rainwear").contains(id)&&grid(s,"cargo").containsKey(id),"실어 온 장비만 배치할 수 있어요.");
         int rotation=requestedRotation(body);
         if(!body.containsKey("rotation_degrees")&&grid(s,"field").get(id) instanceof Map<?,?> old) {
             @SuppressWarnings("unchecked") var previous=(Map<String,Object>)old;
@@ -201,8 +231,15 @@ final class MvpRules {
         boolean returning=s.get("phase").equals("return_pack");
         var missed=new ArrayList<>(available(s));missed.removeAll(grid(s,"cargo").keySet());
         s.put("packing_result",missed);s.put("pack_finished",true);s.put("pack_started",false);
-        if(returning){owned(s).removeAll(missed);if(missed.contains("meal"))s.put("meal_owned",false);s.put("lost",missed);s.put("phase","settlement");}
-        else {s.put("phase","setup");s.put("camp_day",0);s.put("camp_minute",960);s.put("field",new LinkedHashMap<>());s.put("stamina",Math.max(40,n(s,"stamina")));}
+        if(returning){
+            var parcels=parcels(s);
+            for(String item:missed)if(!item.equals("meal")&&!parcels.contains(item))parcels.add(item);
+            owned(s).removeAll(missed);
+            if(missed.contains("meal"))s.put("meal_owned",false);
+            s.put("parcel_box",parcels);
+            s.put("phase","settlement");
+        }
+        else {s.put("phase","setup");s.put("camp_day",0);if(!hasRainwear(s))s.put("outfit","basic");applyWeatherOutfit(s);s.put("camp_minute",960);s.put("field",new LinkedHashMap<>());s.put("stamina",Math.max(40,n(s,"stamina")));}
     }
     static void tick(Map<String,Object>s,Map<String,Object>body) {
         int elapsed=integer(body,"elapsed_ms",0,2000);String phase=(String)s.get("phase");
@@ -223,6 +260,7 @@ final class MvpRules {
     }
     static Map<String,Object> transition(Map<String,Object>current,String command,String choice,Map<String,Object>body) {
         var s=PrototypeRules.copy(current);String phase=(String)s.get("phase");
+        s.putIfAbsent("parcel_box",parcels(s));
         if(command.equals("tick")){tick(s,body);return s;}
         if(phase.equals("character")&&command.equals("select_character")) {
             need(Set.of("male","female").contains(choice),"캐릭터를 선택해 주세요.");s.put("character_id",choice);s.put("phase","work");
@@ -239,24 +277,34 @@ final class MvpRules {
         } else if(phase.equals("work")&&command.equals("work")) {
             need(!s.containsKey("office_task"),"시작한 서류 검토 업무를 먼저 마쳐 주세요.");
             finishWork(s);
+        } else if(Set.of("place","equipment","settlement").contains(phase)&&command.equals("claim_parcel")) {
+            var box=parcels(s);
+            need(box.remove(choice),"택배함에 없는 장비예요.");
+            charge(s,PARCEL_FEE);
+            if(!choice.equals("rainwear"))owned(s).add(choice);
+            s.put("parcel_box",box);
         } else if(phase.equals("place")&&command.equals("choose_place")) {
             need(Set.of("lake","pine").contains(choice),"장소를 골라 주세요.");charge(s,choice.equals("lake")?15:30);s.put("place",choice);s.put("phase","equipment");
         } else if(phase.equals("equipment")&&command.equals("buy_item")) {
-            need(ITEMS.containsKey(choice)&&!choice.equals("meal"),"구매할 장비를 확인해 주세요.");
-            need(!owned(s).contains(choice),"이미 보유한 장비예요.");charge(s,ITEMS.get(choice).price());owned(s).add(choice);
+            need(ITEMS.containsKey(choice)&&!Set.of("meal","rainwear").contains(choice),"구매할 장비를 확인해 주세요.");
+            need(!owned(s).contains(choice),"이미 보유한 장비예요.");
+            need(!parcels(s).contains(choice),"택배함에서 먼저 찾아 주세요.");charge(s,ITEMS.get(choice).price());owned(s).add(choice);
         } else if(phase.equals("equipment")&&command.equals("shop_done"))s.put("phase","prepare");
         else if(phase.equals("prepare")&&command.equals("buy_meal")) {
-            need(!Boolean.TRUE.equals(s.get("meal_owned")),"이번 캠핑 음식은 이미 준비했어요.");charge(s,20);s.put("meal_owned",true);
-        } else if(phase.equals("prepare")&&command.equals("set_clothes")) {
-            need(Set.of("basic","rain").contains(choice),"옷을 선택해 주세요.");s.put("outfit",choice);
+            need(!Boolean.TRUE.equals(s.get("meal_owned")),"이번 캠핑 음식은 이미 준비했어요.");charge(s,ITEMS.get("meal").price());s.put("meal_owned",true);
+        } else if(Set.of("prepare","free").contains(phase)&&command.equals("set_clothes")) {
+            need(Set.of("auto","basic","rain").contains(choice),"옷을 선택해 주세요.");
+            need(!choice.equals("rain")||hasRainwear(s),"트렁크에 실어 온 방수 겉옷이 필요해요.");
+            s.put("outfit_auto",choice.equals("auto"));
+            if(choice.equals("auto"))applyWeatherOutfit(s);else s.put("outfit",choice);
         } else if(phase.equals("prepare")&&command.equals("prepare_done")) {
-            s.put("phase","packing");s.put("cargo",new LinkedHashMap<>());s.put("pack_started",false);s.put("pack_finished",false);s.put("pack_remaining_ms",45000);
+            s.put("phase","packing");s.put("weather_cargo",true);s.put("cargo",new LinkedHashMap<>());s.put("pack_started",false);s.put("pack_finished",false);s.put("pack_remaining_ms",45000);
         } else if(Set.of("packing","return_pack").contains(phase)&&command.equals("start_pack")) {
             need(!Boolean.TRUE.equals(s.get("pack_started")),"이미 적재 중이에요.");s.put("pack_started",true);
         } else if(Set.of("packing","return_pack").contains(phase)&&command.equals("finish_pack")) {
             need(Boolean.TRUE.equals(s.get("pack_started")),"짐 싸기를 먼저 시작해 주세요.");
             var missed=new ArrayList<>(available(s));missed.removeAll(grid(s,"cargo").keySet());
-            need(!phase.equals("return_pack")||missed.isEmpty()||Boolean.TRUE.equals(body.get("confirm_loss")),"남겨질 물건을 확인한 뒤 귀가해 주세요.");
+            need(!phase.equals("return_pack")||missed.isEmpty()||(Boolean.TRUE.equals(body.get("confirm_mail"))||Boolean.TRUE.equals(body.get("confirm_loss"))),"착불로 보낼 물건을 확인한 뒤 귀가해 주세요.");
             finishPacking(s);
         } else if(Set.of("packing","return_pack").contains(phase)&&Set.of("place_item","remove_item").contains(command)) {
             need(Boolean.TRUE.equals(s.get("pack_started")),"짐 싸기를 먼저 시작해 주세요.");
@@ -276,7 +324,7 @@ final class MvpRules {
         } else if(phase.equals("free")&&command.equals("rest")) {
             need(!Boolean.TRUE.equals(s.get("rested")),"오늘은 충분히 쉬었어요.");s.put("rested",true);s.put("stamina",Math.min(100,n(s,"stamina")+15));add(s,"camp_minute",30);
         } else if(Set.of("free","sleep_required").contains(phase)&&command.equals("sleep")) {
-            need(n(s,"camp_day")==0,"일요일에는 귀가를 준비해요.");s.put("camp_day",1);s.put("camp_minute",480);s.put("rested",false);s.put("stamina",Math.min(100,n(s,"stamina")+60));s.put("status_note","");s.put("phase","free");
+            need(n(s,"camp_day")==0,"일요일에는 귀가를 준비해요.");s.put("camp_day",1);applyWeatherOutfit(s);s.put("camp_minute",480);s.put("rested",false);s.put("stamina",Math.min(100,n(s,"stamina")+60));s.put("status_note","");s.put("phase","free");
         } else if(phase.equals("free")&&command.equals("leave_camp")) {
             need(n(s,"camp_day")==1,"토요일에는 캠프에서 하룻밤 쉬어요.");s.put("phase","teardown");
         } else if(phase.equals("teardown")&&command.equals("take_down")) {
@@ -290,7 +338,7 @@ final class MvpRules {
         } else if(phase.equals("settlement")&&command.equals("next_week")) {
             add(s,"week",1);s.put("day",0);s.put("phase","work");s.put("place","");s.put("field",new LinkedHashMap<>());s.put("cargo",new LinkedHashMap<>());
             s.put("cooked",false);s.put("eaten",false);s.put("cooking",0);s.put("rested",false);
-            s.put("camp_elapsed_ms",0);s.put("status_note","");s.put("lost",new ArrayList<>());s.put("weather",forecast(n(s,"week")));
+            s.put("camp_elapsed_ms",0);s.put("status_note","");s.remove("lost");s.put("weather",forecast(n(s,"week")));
             s.put("week_start_money",s.get("money"));s.put("week_income",0);s.put("week_spent",0);
         } else throw new IllegalArgumentException("현재 단계에서 할 수 없는 행동이에요.");
         return s;

@@ -58,33 +58,29 @@ func run() -> void:
 	await act("office_start")
 	var starting_money:=int(game.state.money)
 	var paper: Dictionary=game.state.office_case
-	var right_choice: String="approve" if paper.order==paper.invoice else "revise"
-	await act("office_review","revise" if right_choice=="approve" else "approve",{"case_id":paper.id})
-	require(int(game.state.office_task.index)==0 and int(game.state.money)==starting_money,"서류 오답 재시도·급여 미지급")
+	await act("office_review","approve" if paper.order!=paper.invoice else "revise",{"case_id":paper.id,"field":"amount"})
+	require(int(game.state.office_pay)==1 and int(game.state.money)==starting_money,"오답 급여 적립")
 	for i in range(6):
 		paper=game.state.office_case
-		await act("office_review","approve" if paper.order==paper.invoice else "revise",{"case_id":paper.id})
-		if i==1:
-			await act("office_pause")
-			game.queue_free();await process_frame
-			game=Main.instantiate();game.session_save_path=session_file
-			game.base_url=OS.get_environment("CP_VERIFY_API_URL") if not OS.get_environment("CP_VERIFY_API_URL").is_empty() else "http://127.0.0.1:8000/api/v1/prototype/"
-			root.add_child(game);await idle()
-			require(int(game.state.office_task.index)==2,"서류 진행 재접속 복원")
-			await act("office_start")
+		var field := ""
+		for key in ["supplier","amount","due"]:
+			if paper.order[key]!=paper.invoice[key]: field=key
+		await act("office_review","approve" if field.is_empty() else "revise",{"case_id":paper.id,"field":field})
+	while int(game.state.office_remaining_ms)>0:
+		await act("tick","",{"elapsed_ms":mini(2000,int(game.state.office_remaining_ms))})
 	await act("office_finish")
-	require(int(game.state.day)==1 and int(game.state.money)==starting_money+10,"서류 업무 급여·다음 날 연결")
-	print("PASS office API: wrong retry / six cases / resume / salary / next day")
+	require(int(game.state.day)==1 and int(game.state.money)==starting_money+13,"서류 업무 급여·다음 날 연결")
+	print("PASS office API: timed submissions / correct and wrong salary / next day")
 	for i in range(4): await act("work")
 	require(game.state.phase == "place","장소 선택 진입")
 	await act("choose_place","lake")
-	for id in ["chair","table","lantern"]: await act("buy_item",id)
+	for id in ["table","lantern"]: await act("buy_item",id)
 	await act("shop_done")
 	await act("buy_meal")
 	await act("set_clothes","rain")
 	await act("prepare_done")
 	await act("start_pack")
-	for row in [["tent",0,0],["table",0,2],["stove",3,0],["chair",3,1],["lantern",5,0],["meal",5,4]]:
+	for row in [["tent",0,0],["table",0,2],["stove",3,0],["chair",3,1],["lantern",5,0],["rainwear",5,3],["meal",5,4]]:
 		await act("place_item",row[0],{"x":row[1],"y":row[2],"rotated":false})
 	await act("finish_pack")
 	require(game.state.phase == "setup" and int(game.state.pack_remaining_ms)>0,"시간 전 직접 출발")
@@ -136,11 +132,14 @@ func run() -> void:
 	for id in ["stove","lantern","chair","tent","table"]: await act("take_down",id)
 	await act("teardown_done")
 	await act("start_pack")
-	for row in [["tent",0,0],["table",0,2],["stove",3,0],["lantern",5,0]]:
+	for row in [["tent",0,0],["table",0,2],["stove",3,0],["lantern",5,0],["rainwear",5,3]]:
 		await act("place_item",row[0],{"x":row[1],"y":row[2],"rotated":false})
-	await act("finish_pack","",{"confirm_loss":true})
-	require(game.state.phase == "settlement" and "chair" in game.state.lost,"귀가 미적재 의자 손실")
-	require(not "chair" in game.state.owned,"손실 실제 반영")
+	await act("finish_pack","",{"confirm_mail":true})
+	require(game.state.phase == "settlement" and "chair" in game.state.parcel_box,"귀가 미적재 의자 착불 보관")
+	require(not "chair" in game.state.owned,"택배함 장비는 수령 전 사용 불가")
+	var before_pickup:=int(game.state.money)
+	await act("claim_parcel","chair")
+	require("chair" in game.state.owned and int(game.state.money)==before_pickup-5,"착불 장비 수령")
 	await act("next_week")
 	require(game.state.phase == "work" and int(game.state.week)==2,"다음 주 연결")
 	var expected_money := int(game.state.money)

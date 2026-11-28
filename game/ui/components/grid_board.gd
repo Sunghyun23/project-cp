@@ -164,7 +164,7 @@ func _draw() -> void:
 			# 그림이 비어 있는 칸을 덮지 않게 첫 점유 칸에 식별용 그림을 둔다.
 			draw_texture_rect(texture,Rect2(Vector2(origin+footprint[0])*cell_size+Vector2(4,4),Vector2.ONE*(cell_size-8)),false)
 		else:
-			draw_string(get_theme_default_font(), item_rect.position + Vector2(1, 24), "음식", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("fff7df"))
+			draw_string(get_theme_default_font(), item_rect.position + Vector2(1, 24), "우비" if id == "rainwear" else "음식", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("fff7df"))
 	if interactive and not selected.is_empty():
 		var color := Color(0.25, 0.48, 0.28, 0.50) if valid_at(cursor) else Color(0.7, 0.2, 0.14, 0.45)
 		for offset in cells(selected, packing_angle):
