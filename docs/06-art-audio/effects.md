@@ -25,6 +25,14 @@
 
 ## 데이터·구현 위치
 
+### 2026-11-28 밤 배경 색상 보정 수정
+
+사용자가 밤 전환 시 배경이 바뀌지 않는다고 보고했다. 소나무 숲은 같은 원화에 밤 색을 적용하지만 `campsite.gdshader`가 텍스처만 출력해 CanvasItem의 `modulate`를 무시했다. vertex 단계의 색을 varying으로 전달하고 크롭된 텍스처에 곱해 실제 밤 색을 적용한다. fragment의 기본 COLOR는 이미 기본 UV 텍스처를 포함하므로 중복 곱하지 않는다. [공식 COLOR 설명](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/canvas_item_shader.html#color-and-texture)
+
+`tools/verify-night-background.gd`는 네트워크 없는 실제 Main 화면을 macOS Compatibility GPU로 렌더링해 배경 픽셀을 비교한다. 숲·호수의 17:59→18:00, 낮 복원, 수동 낮밤 전환, 저장 응답 후 수동 설정 유지를 검사했다. 숲은 새 야간 원화를 생성한 것이 아니라 기존 밤 색상 보정이 동작하도록 수정한 것이다. 게임 시간·장비·배치 규칙은 바꾸지 않는다.
+
+밤 배경 수정 웹 빌드 `b15090130d2232e934f8e6eb4cb670a6e3cf379f2c157d2226c054becb12841f`를 공개 반영했다. 웹 복구 지점 `20261128T064624Z`를 보존했으며 API·DB는 변경하지 않았다. Android 실기기 GPU 검증은 별도다.
+
 `game/effects/camp_effects_3d.gd`가 광원·입자의 수명과 원본 위치를 관리한다. `radiance.gdshader`·`shadow_catcher.gdshader`는 합성 재질이다. 현장 좌표·회전·소유 데이터는 기존 배치 구조를 사용하며 추가 서버 규칙이나 모닥불 아이템을 생성하지 않는다. 버너 주변 효과는 현재 프로토타입의 시각 연출로, 새로운 연료 소모 규칙을 뜻하지 않는다.
 
 ## 호환·검증
