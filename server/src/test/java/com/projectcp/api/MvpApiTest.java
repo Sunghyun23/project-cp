@@ -118,20 +118,20 @@ class MvpApiTest {
         var p=new Player();p.prepare(false);p.place("tent",0,0,false);
         p.act("finish_pack");assertEquals("setup",p.s().get("phase"));
         assertTrue(((Number)p.s().get("pack_remaining_ms")).intValue()>0);
-        assertEquals(List.of("stove","chair","rainwear"),p.s().get("packing_result"));
+        assertEquals(List.of("stove","chair","sleeping_bag","rainwear"),p.s().get("packing_result"));
         p.act("setup_done");p.act("sleep");p.act("leave_camp");p.act("teardown_done");p.act("start_pack");
         var before=p.saved;
         assertEquals(400,call("POST","actions/",p.token,Map.of("command","finish_pack","version",p.saved.get("version"))).status());
         assertEquals(before,call("GET","state/",p.token,null).data());
         p.act("finish_pack","",Map.of("confirm_mail",true));
         assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("tent"),p.s().get("parcel_box"));
-        assertEquals(List.of("stove","chair"),p.s().get("owned"));
+        assertEquals(List.of("stove","chair","sleeping_bag"),p.s().get("owned"));
         int beforePickup=((Number)p.s().get("money")).intValue();
         p.act("next_week");
-        for(int i=0;i<5;i++)p.act("work");
+        assertEquals("work",p.s().get("phase"));
         assertEquals(List.of("tent"),p.s().get("parcel_box"));
         p.act("claim_parcel","tent");
-        assertEquals(beforePickup+45,p.s().get("money"));
+        assertEquals(beforePickup-5,p.s().get("money"));
         assertTrue(((List<?>)p.s().get("owned")).contains("tent"));
         assertEquals(List.of(),p.s().get("parcel_box"));
         assertEquals(400,call("POST","actions/",p.token,Map.of("command","claim_parcel","choice","tent","version",p.saved.get("version"))).status());
@@ -204,7 +204,7 @@ class MvpApiTest {
         for(String id:List.of("chair","stove","tent"))p.act("take_down",id);
         p.act("teardown_done");p.act("start_pack");p.place("tent",0,0,false);p.place("stove",3,0,false);p.expire();
         assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("chair"),p.s().get("parcel_box"));
-        assertEquals(List.of("tent","stove"),p.s().get("owned"));assertEquals(110,p.s().get("money"));
+        assertEquals(List.of("tent","stove","sleeping_bag"),p.s().get("owned"));assertEquals(110,p.s().get("money"));
         p.act("next_week");assertEquals(2,p.s().get("week"));assertEquals("male",p.s().get("character_id"));
         assertEquals(p.saved,call("GET","state/",p.token,null).data());
     }
@@ -221,11 +221,11 @@ class MvpApiTest {
     @Test void returnParcelsNeverRemoveItemsLeftAtHome()throws Exception {
         var p=new Player();p.prepare(false);p.place("tent",0,0,false);p.place("stove",3,0,false);p.expire();
         p.act("setup_done");p.act("sleep");p.act("leave_camp");p.act("teardown_done");p.act("start_pack");p.expire();
-        assertEquals(List.of("chair"),p.s().get("owned"));assertEquals(List.of("tent","stove"),p.s().get("parcel_box"));
+        assertEquals(List.of("chair","sleeping_bag"),p.s().get("owned"));assertEquals(List.of("tent","stove"),p.s().get("parcel_box"));
     }
     @Test void starterGearIsFreeAndPackedRainwearFollowsDailyWeather()throws Exception {
         var p=new Player();p.prepare(true);
-        assertEquals(List.of("tent","stove","chair"),p.s().get("starter_pack"));
+        assertEquals(List.of("tent","stove","chair","sleeping_bag"),p.s().get("starter_pack"));
         assertEquals(110,p.s().get("money"));
         p.act("finish_pack");
         assertEquals("basic",p.s().get("outfit"));
@@ -268,6 +268,19 @@ class MvpApiTest {
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(stacked,"place_item","lantern",Map.of("x",6,"y",.9,"z",3)));
         s=MvpRules.transition(s,"place_item","lantern",Map.of("x",5,"y",0,"z",3));
         s=MvpRules.transition(s,"remove_item","table",Map.of());assertFalse(((Map<?,?>)s.get("field")).containsKey("table"));
+    }
+
+    @Test void storeUpgradesOwnedStarterGearWithoutDuplicatingItems()throws Exception {
+        var p=new Player();p.act("select_character","female");
+        for(int i=0;i<5;i++)p.act("work");
+        p.act("choose_place","lake");
+        var owned=p.s().get("owned");
+        int before=((Number)p.s().get("money")).intValue();
+        p.act("upgrade_gear","tent");
+        assertEquals(before-35,p.s().get("money"));
+        assertEquals(owned,p.s().get("owned"));
+        assertEquals(List.of("tent"),p.s().get("gear_upgrades"));
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","upgrade_gear","choice","tent","version",p.saved.get("version"))).status());
     }
 
     @Test void duplicatePurchaseAndUnaffordablePlaceDoNotSpendMoney()throws Exception {

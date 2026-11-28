@@ -41,6 +41,9 @@ final class CampsiteCatalog {
     static Map<String,Object> enrich(Map<String,Object> state) {
         if (!state.containsKey("mvp_version")) return state;
         var result=new LinkedHashMap<>(state);
+        result.put("owned",new ArrayList<>(MvpRules.owned(state)));
+        MvpRules.addSleepingBagToOlderSaves(result);
+        result.put("gear_upgrades",MvpRules.upgrades(state));
         result.put("campsite_catalog",DATA);
         result.put("item_catalog",MvpRules.catalog());
         result.put("parcel_box",MvpRules.parcels(state));

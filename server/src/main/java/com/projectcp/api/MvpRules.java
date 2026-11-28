@@ -7,15 +7,17 @@ final class MvpRules {
     private MvpRules() {}
     record Item(String name, int price, int[][] cells) {}
     static final int PARCEL_FEE=5;
-    static final List<String> STARTER_GEAR=List.of("tent","stove","chair");
+    static final List<String> STARTER_GEAR=List.of("tent","stove","chair","sleeping_bag");
+    static final Map<String,Integer> UPGRADE_PRICES=Map.of("tent",35,"stove",20,"sleeping_bag",15,"chair",20,"table",30,"lantern",25);
     static final Map<String,Item> ITEMS = new LinkedHashMap<>();
     static {
         ITEMS.put("tent", new Item("낡은 텐트", 35, new int[][]{{0,0},{1,0},{2,0},{0,1},{1,1}}));
-        ITEMS.put("stove", new Item("기본 버너", 20, rect(2,1)));
-        ITEMS.put("chair", new Item("접이식 의자", 20, new int[][]{{0,0},{0,1},{1,1}}));
-        ITEMS.put("table", new Item("테이블", 30, new int[][]{{0,0},{1,0},{2,0},{1,1}}));
-        ITEMS.put("lantern", new Item("랜턴", 25, rect(1,2)));
-        ITEMS.put("rug", new Item("러그", 18, new int[][]{{0,0},{0,1},{1,1},{1,2}}));
+        ITEMS.put("stove", new Item("낡은 버너·코펠", 20, rect(2,1)));
+        ITEMS.put("chair", new Item("낡은 접이식 의자", 20, new int[][]{{0,0},{0,1},{1,1}}));
+        ITEMS.put("table", new Item("낡은 테이블", 30, new int[][]{{0,0},{1,0},{2,0},{1,1}}));
+        ITEMS.put("lantern", new Item("낡은 랜턴", 25, rect(1,2)));
+        ITEMS.put("rug", new Item("장식 러그", 18, new int[][]{{0,0},{0,1},{1,1},{1,2}}));
+        ITEMS.put("sleeping_bag", new Item("기본 침낭", 15, rect(1,2)));
         ITEMS.put("meal", new Item("라면 재료", 5, rect(1,1)));
         ITEMS.put("rainwear", new Item("방수 겉옷", 0, rect(1,1)));
     }
@@ -26,11 +28,11 @@ final class MvpRules {
     }
     static List<Map<String,Object>> catalog() {
         return ITEMS.entrySet().stream().map(e -> Map.<String,Object>of("id",e.getKey(),"name",e.getValue().name(),
-                "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"can_place_on_table",Boolean.TRUE.equals(CampsiteCatalog.surface(e.getKey()).get("can_place_on_table")),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0),"rotation_step_degrees",90,"allowed_rotations",List.of(0,90,180,270))).toList();
+                "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"can_place_on_table",Boolean.TRUE.equals(CampsiteCatalog.surface(e.getKey()).get("can_place_on_table")),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0),"rotation_step_degrees",90,"allowed_rotations",List.of(0,90,180,270),"upgrade_price",UPGRADE_PRICES.getOrDefault(e.getKey(),0))).toList();
     }
     static Map<String,Object> initialState() {
         var s=upgrade(PrototypeRules.legacyInitialState());
-        owned(s).add("chair");
+        owned(s).addAll(List.of("chair","sleeping_bag"));
         s.put("starter_pack",STARTER_GEAR);
         s.put("outfit_auto",true);
         return s;
@@ -63,6 +65,18 @@ final class MvpRules {
     }
     @SuppressWarnings("unchecked") static List<String> owned(Map<String,Object>s){return (List<String>)s.get("owned");}
     @SuppressWarnings("unchecked") static Map<String,Object> grid(Map<String,Object>s,String key){return (Map<String,Object>)s.get(key);}
+    @SuppressWarnings("unchecked") static List<String> upgrades(Map<String,Object> s) {
+        return (List<String>)s.getOrDefault("gear_upgrades",List.of());
+    }
+
+    static void addSleepingBagToOlderSaves(Map<String,Object> s) {
+        if(!(s.get("starter_pack") instanceof List<?> starter) || !starter.contains("sleeping_bag")) {
+            var updated=new ArrayList<>(STARTER_GEAR);
+            s.put("starter_pack",updated);
+            if(!owned(s).contains("sleeping_bag")&&!parcels(s).contains("sleeping_bag"))owned(s).add("sleeping_bag");
+        }
+    }
+
     static List<String> parcels(Map<String,Object> s) {
         var items=new ArrayList<String>();
         if(s.getOrDefault("parcel_box",s.get("lost")) instanceof List<?> saved)
@@ -159,7 +173,7 @@ final class MvpRules {
     static double[] bounds(String id,boolean rotated) {
         double[] b=switch(id){case "tent"->new double[]{2.0,1.8,2.0};case "table"->new double[]{2.1,.9,1.4};
             case "chair"->new double[]{1.0,1.2,1.0};case "stove"->new double[]{1.4,.65,.7};
-            case "lantern"->new double[]{.5,1.0,.7};default->new double[]{1.4,.06,2.1};};
+            case "lantern"->new double[]{.5,1.0,.7};case "sleeping_bag"->new double[]{.75,.12,1.75};default->new double[]{1.4,.06,2.1};};
         return rotated?new double[]{b[2],b[1],b[0]}:b;
     }
     static int fieldRotation(Map<String,Object> value) {
@@ -261,6 +275,7 @@ final class MvpRules {
     static Map<String,Object> transition(Map<String,Object>current,String command,String choice,Map<String,Object>body) {
         var s=PrototypeRules.copy(current);String phase=(String)s.get("phase");
         s.putIfAbsent("parcel_box",parcels(s));
+        addSleepingBagToOlderSaves(s);
         if(command.equals("tick")){tick(s,body);return s;}
         if(phase.equals("character")&&command.equals("select_character")) {
             need(Set.of("male","female").contains(choice),"캐릭터를 선택해 주세요.");s.put("character_id",choice);s.put("phase","work");
@@ -277,7 +292,8 @@ final class MvpRules {
         } else if(phase.equals("work")&&command.equals("work")) {
             need(!s.containsKey("office_task"),"시작한 서류 검토 업무를 먼저 마쳐 주세요.");
             finishWork(s);
-        } else if(Set.of("place","equipment","settlement").contains(phase)&&command.equals("claim_parcel")) {
+        } else if(Set.of("work","place","equipment","settlement").contains(phase)&&command.equals("claim_parcel")) {
+            need(!phase.equals("work")||!(s.get("office_task") instanceof Map<?,?> office)||!Boolean.TRUE.equals(office.get("active")),"서류 검토를 잠시 닫은 뒤 택배를 받아 주세요.");
             var box=parcels(s);
             need(box.remove(choice),"택배함에 없는 장비예요.");
             charge(s,PARCEL_FEE);
@@ -289,6 +305,11 @@ final class MvpRules {
             need(ITEMS.containsKey(choice)&&!Set.of("meal","rainwear").contains(choice),"구매할 장비를 확인해 주세요.");
             need(!owned(s).contains(choice),"이미 보유한 장비예요.");
             need(!parcels(s).contains(choice),"택배함에서 먼저 찾아 주세요.");charge(s,ITEMS.get(choice).price());owned(s).add(choice);
+        } else if(phase.equals("equipment")&&command.equals("upgrade_gear")) {
+            need(UPGRADE_PRICES.containsKey(choice)&&owned(s).contains(choice),"보유 장비만 업그레이드할 수 있어요.");
+            var upgrades=new ArrayList<>(upgrades(s));
+            need(!upgrades.contains(choice),"이미 업그레이드한 장비예요.");
+            charge(s,UPGRADE_PRICES.get(choice));upgrades.add(choice);s.put("gear_upgrades",upgrades);
         } else if(phase.equals("equipment")&&command.equals("shop_done"))s.put("phase","prepare");
         else if(phase.equals("prepare")&&command.equals("buy_meal")) {
             need(!Boolean.TRUE.equals(s.get("meal_owned")),"이번 캠핑 음식은 이미 준비했어요.");charge(s,ITEMS.get("meal").price());s.put("meal_owned",true);

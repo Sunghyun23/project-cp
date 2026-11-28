@@ -275,7 +275,10 @@ func _draw() -> void:
 	camper_sprite.visible=not shared_3d and state.get("phase", "") != "work"
 	if shared_3d:
 		var world_foot: Vector3=actor.position-Vector3(camp_world.origin_x,0,camp_world.origin_z)
-		var pose: String=actor.animation()
+		var waiting_outside: bool = state.get("phase", "") == "setup" and actor.mode not in ["approach_install", "install", "saving"]
+		if waiting_outside:
+			world_foot = Vector3(-camp_world.origin_x + .5, 0, camp_world.site_depth - camp_world.origin_z + .55)
+		var pose: String="idle" if waiting_outside else actor.animation()
 		camp_world.update_camper(camper_sprite.sprite_frames,camp_world.screen_point(world_foot),pose == "walk",actor.facing_left if actor.mode != "sit" else false,pose,.1 if actor.mode == "sit" else 0.0)
 		if mvp_screen != null and mvp_screen.viewing_scenery:
 			mvp_screen.scenery_hint.text=actor_message if not actor_message.is_empty() else "바닥: 이동 · 의자: 앉기\nEsc / B: 종료" if size.x<600 else "바닥/방향키: 이동 · 의자/확인: 앉기 · Esc/B: 종료"
@@ -405,6 +408,7 @@ func _render() -> void:
 			add_child(mvp_screen)
 			mvp_screen.use_field_editor(camp_world)
 			mvp_screen.installation_requested.connect(func(id: String, point: Vector3, angle: int):
+				actor.position = actor.nearest(Vector3(.5, 0, camp_world.site_depth - .25))
 				if not actor.install(id,point,angle):
 					mvp_screen.install_failed("장비 옆까지 갈 수 없어요 · 위치를 바꾸거나 취소해 주세요"))
 			mvp_screen.installation_cancelled.connect(func(): actor.cancel())

@@ -10,6 +10,7 @@ var rows := 5
 var cell_size := 48
 var catalog: Dictionary = {}
 var placements: Dictionary = {}
+var upgraded_ids: Array = []
 var selected := ""
 var rotated := false
 var packing_angle := 0
@@ -81,7 +82,7 @@ func _get_drag_data(at: Vector2) -> Variant:
 		item_selected.emit(id)
 		dragged=true
 		var preview:=TextureRect.new()
-		preview.texture=Assets.item_texture(id)
+		preview.texture=Assets.item_texture(id, id in upgraded_ids)
 		preview.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 		preview.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		preview.custom_minimum_size=Vector2(80,80)
@@ -159,7 +160,7 @@ func _draw() -> void:
 			draw_rect(box, Assets.cargo_color(id))
 			draw_rect(box, Assets.cargo_color(id).darkened(.48), false, 3)
 		var item_rect := Rect2(Vector2(origin) * cell_size + Vector2(5, 5), Vector2(largest + Vector2i.ONE) * cell_size - Vector2(10, 10))
-		var texture := Assets.item_texture(id)
+		var texture := Assets.item_texture(id, id in upgraded_ids)
 		if texture:
 			# 그림이 비어 있는 칸을 덮지 않게 첫 점유 칸에 식별용 그림을 둔다.
 			draw_texture_rect(texture,Rect2(Vector2(origin+footprint[0])*cell_size+Vector2(4,4),Vector2.ONE*(cell_size-8)),false)
