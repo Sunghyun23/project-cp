@@ -55,6 +55,12 @@ python3 tools/verify-deployment.py https://project-cp-3-107-24-136.sslip.io
 
 로컬 기본 관리 키 경로는 기존대로 유지한다. 다른 키는 `CP_SSH_KEY`, 호스트 키 파일은 `CP_KNOWN_HOSTS`로 지정한다.
 
+## 첫 실행 검증
+
+2026-11-28 [GitHub 실행 46121540023](https://github.com/Sunghyun23/project-cp/actions/runs/46121540023)에서 main 커밋 `e7a673c`의 `all` 배포를 성공했다. GitHub 호스팅 Ubuntu에서 API 검사 28개, 업무 입력, Mesa의 숲/호수 낮밤 렌더링, 웹 내보내기, 전용 키 접속, 백업·배포·공개 버전/게임/동영상 확인을 모두 통과했다.
+
+서버 `/deployment.json`의 커밋·실행 URL 일치를 확인했다. 복구 지점은 `backups/releases/20261128T073251Z-e7a673c4a5b7-3880/`이며 백업 파일은 600 권한이다. 서버 전송 임시 폴더와 설정에 사용한 로컬 개인 키 사본을 삭제했다. 실패 자동 복구의 실제 장애 주입 검증은 미실행이며 위 검증은 정상 배포 경로에 해당한다.
+
 ## 공식 참고
 
 - [수동 워크플로와 실행 권한](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
