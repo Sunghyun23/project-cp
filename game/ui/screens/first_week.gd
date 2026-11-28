@@ -7,14 +7,11 @@ signal office_action_requested(command: String, choice: String, extra: Dictionar
 
 const UiInput = preload("res://ui/ui_input.gd")
 const ROOM = preload("res://assets/pixel/workroom-day.png")
-const Catalog = preload("res://ui/components/character_catalog.gd")
 const Paper = preload("res://ui/components/paper_panel.tscn")
 const Action = preload("res://ui/components/action_button.tscn")
 const Chip = preload("res://ui/components/hud_chip.tscn")
 const Notice = preload("res://ui/components/notice.tscn")
 var scenery: TextureRect
-var avatar: AnimatedSprite2D
-var shadow: Polygon2D
 var header: VBoxContainer
 var title: Label
 var week_label: Label
@@ -28,7 +25,6 @@ var work_button: Button
 var reload_button: Button
 var account_button: Button
 var snapshot: Dictionary = {}
-var displayed_character := ""
 var outcome := ""
 var pending := false
 var office_button: Button
@@ -87,17 +83,6 @@ func _ready() -> void:
 	stamina_chip = Chip.instantiate()
 	stamina_chip.get_node("Value").text = "체력 · 0 / 100"
 	stats.add_child(stamina_chip)
-	shadow = Polygon2D.new()
-	shadow.color = Color(0.10, 0.09, 0.04, 0.25)
-	var points := PackedVector2Array()
-	for i in range(24):
-		points.append(Vector2(cos(TAU * i / 24.0) * 55, sin(TAU * i / 24.0) * 12))
-	shadow.polygon = points
-	add_child(shadow)
-	avatar = AnimatedSprite2D.new()
-	avatar.sprite_frames = Catalog.frames("female")
-	avatar.play("idle")
-	add_child(avatar)
 	dock = Paper.instantiate()
 	dock.custom_minimum_size.x = minf(520, size.x - 40)
 	add_child(dock)
@@ -151,18 +136,13 @@ func apply_state(value: Dictionary, saving: bool, message: String, check_require
 	week_label.text = "첫 번째 주말을 향해" if int(value.get("week", 1)) == 1 else "%d번째 주말을 향해" % int(value.get("week", 1))
 	money_chip.get_node("Value").text = "소지금 · %d원" % int(value.get("money", 0))
 	stamina_chip.get_node("Value").text = "체력 · %d / 100" % int(value.get("stamina", 0))
-	var id: String = value.get("character_id", "female")
-	if displayed_character != id:
-		avatar.sprite_frames = Catalog.frames(id)
-		avatar.play("idle")
-		displayed_character = id
-	guide.text = "서류를 검토해 캠핑 비용을 모아요.\n간단 업무로 바로 마칠 수도 있어요."
+	guide.text = "시작한 서류 검토를 이어서 할 수 있어요." if value.has("office_task") else "20초 동안 서류를 검토해 캠핑 비용을 모아요.\n간단 업무로 바로 마칠 수도 있어요."
 	result_label.text = outcome
 	result_label.visible = not outcome.is_empty()
 	notice.visible = saving or check_required
 	notice.severity = 1 if check_required else 0
 	notice.message = message
-	work_button.disabled = pending
+	work_button.disabled = pending or value.has("office_task")
 	work_button.text = "저장 중…" if saving else "간단 업무로 마치기  →"
 	office_button.disabled=pending
 	office_button.text="서류 검토 이어하기" if value.has("office_task") else "서류 검토 업무 시작"
@@ -203,7 +183,9 @@ func show_result(before: Dictionary, after: Dictionary) -> void:
 func fit() -> void:
 	if dock == null:
 		return
-	preload("res://ui/ui_metrics.gd").apply(self, size.x <= 960)
+	var metrics = preload("res://ui/ui_metrics.gd")
+	metrics.apply(header, size.x <= 960)
+	metrics.apply(dock, size.x <= 960)
 	var narrow := size.x < 760
 	var margin := 20.0 if narrow else 36.0
 	var day: String = ["월", "화", "수", "목", "금"][clampi(int(snapshot.get("day", 0)), 0, 4)]
@@ -220,14 +202,6 @@ func fit() -> void:
 	crop.atlas = ROOM
 	crop.region = Rect2((Vector2(ROOM.get_size()) - source_size) * Vector2(0.78 if narrow else 0.5, 0.5), source_size)
 	scenery.texture = crop
-	var room := maxf(64, dock.position.y - (header.position.y + header.size.y) - 40)
-	var height := minf(210 if narrow else 300, room)
-	var frame := avatar.sprite_frames.get_frame_texture("idle", 0)
-	avatar.scale = Vector2.ONE * height / frame.get_height()
-	var foot := Vector2(size.x * 0.44, dock.position.y - 20)
-	avatar.position = foot - Vector2(0, height * 0.5)
-	shadow.position = foot - Vector2(0, height * 0.065)
-	shadow.scale = Vector2.ONE * height / 320.0
 
 func capture() -> void:
 	apply_state({"week": 1, "day": 0, "money": 80, "stamina": 80, "character_id": "male"}, false, "", false)

@@ -43,10 +43,10 @@ import shutil
 root = Path("builds/web")
 shutil.copy2(root / "index.html", root / "play.html")
 shutil.copy2("web/login.html", root / "index.html")
-for name in ("login.css", "login.js", "loading.css"):
+for name in ("login.css", "login.js", "loading.css", "camping-intro.mp4"):
     shutil.copy2(Path("web") / name, root / name)
 (root / "assets").mkdir(exist_ok=True)
-for name in ("campsite-day.png", "campsite-night.png"):
+for name in ("campsite-day.png", "campsite-night.png", "campsite-day-terrain.png"):
     shutil.copy2(Path("game/assets/pixel") / name, root / "assets" / name)
 shutil.copy2("game/assets/fonts/NotoSansKR.ttf", root / "assets/NotoSansKR.ttf")
 

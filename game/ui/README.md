@@ -13,7 +13,7 @@
 
 ## 원본과 사용법
 
-`theme/camping.tres`가 편집 가능한 공통 Theme다. `theme/build_theme.gd`는 재생성 스크립트이므로 스타일 변경은 여기에 반영한 뒤 아래 명령으로 갱신한다. `.tres`만 수정하고 재생성하면 변경이 덮어써진다. 글꼴 픽셀 렌더링 옵션은 `assets/fonts/DOSPilgi.ttf.import`에 보관하며 글꼴 바이너리를 Theme에 중복 저장하지 않는다.
+`theme/camping.tres`가 편집 가능한 공통 Theme다. `theme/build_theme.gd`는 재생성 스크립트이므로 스타일 변경은 여기에 반영한 뒤 아래 명령으로 갱신한다. `.tres`만 수정하고 재생성하면 변경이 덮어써진다. 가독성 시안의 공통 글꼴은 `assets/fonts/NotoSansKR.ttf`를 참조하며 글꼴 바이너리를 Theme에 중복 저장하지 않는다.
 
 ```sh
 .tools/godot/Godot.app/Contents/MacOS/Godot --headless --path game --script res://ui/theme/build_theme.gd

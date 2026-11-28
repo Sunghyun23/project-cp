@@ -25,8 +25,8 @@ static func skin(name: String, padding: int = 12) -> StyleBoxTexture:
 func _initialize() -> void:
 	var theme := Theme.new()
 	var font := FontVariation.new()
-	font.base_font = load("res://assets/fonts/DOSPilgi.ttf")
-	font.fallbacks = [load("res://assets/fonts/NotoSansKR.ttf")]
+	font.base_font = load("res://assets/fonts/NotoSansKR.ttf")
+	font.variation_opentype = {"wght": 500}
 	theme.default_font = font
 	theme.default_font_size = 16
 	theme.set_color("font_color", "Label", Color("263626"))

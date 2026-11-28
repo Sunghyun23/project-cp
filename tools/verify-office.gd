@@ -10,7 +10,7 @@ func run() -> void:
 	root.size=Vector2i(390,844)
 	ui=Work.instantiate();root.add_child(ui)
 	ui.office_action_requested.connect(func(command,choice,extra): sent.append({"command":command,"choice":choice,"extra":extra}))
-	var state={"mvp_version":1,"phase":"work","week":1,"day":0,"money":80,"stamina":80,"character_id":"male","office_total":6,
+	var state={"mvp_version":1,"phase":"work","week":1,"day":0,"money":80,"stamina":80,"character_id":"male","office_remaining_ms":20000,"office_pay":0,
 		"office_task":{"week":1,"day":0,"index":0,"mistakes":0,"active":true,"feedback":"서류 검토"},
 		"office_case":{"id":"W1-D0-0","order":{"supplier":"솔숲상사","amount":12000,"due":12},"invoice":{"supplier":"솔숲상사","amount":12000,"due":12}}}
 	ui.apply_state(state,false,"",false)
@@ -18,11 +18,14 @@ func run() -> void:
 	var desk=ui.office_screen
 	assert(desk.visible and desk.size.is_equal_approx(Vector2(root.size)))
 	assert(desk.is_ancestor_of(root.gui_get_focus_owner()))
-	desk.approve.pressed.emit();assert(sent.back().choice=="approve" and sent.back().extra.case_id=="W1-D0-0")
+	desk.approve.pressed.emit();assert(desk.stamp_mark.visible);assert(sent.back().choice=="approve" and sent.back().extra.case_id=="W1-D0-0")
+	assert(desk.revise.disabled)
+	desk.invoice_fields.amount.pressed.emit()
+	assert(desk.invoice_fields.amount.button_pressed and not desk.revise.disabled)
 	for touch in [false,true]:
 		var before_drag:=sent.size()
 		await drag(desk.invoice.global_position+Vector2(35,30),desk.revise.get_global_rect().get_center(),touch)
-		assert(sent.size()==before_drag+1 and sent.back().command=="office_review" and sent.back().choice=="revise")
+		assert(sent.size()==before_drag+1 and sent.back().command=="office_review" and sent.back().choice=="revise" and sent.back().extra.field=="amount")
 	var key:=InputEventKey.new();key.keycode=KEY_1;key.pressed=true;Input.parse_input_event(key);await process_frame
 	assert(sent.back().choice=="approve")
 	desk.approve.grab_focus()
@@ -46,12 +49,15 @@ func run() -> void:
 		root.size=dimensions
 		for i in range(8): await process_frame
 		assert(desk.size.is_equal_approx(Vector2(dimensions)))
-		assert(desk.papers.vertical==(dimensions.x<700))
+		assert(not desk.papers.vertical)
+		for paper in desk.papers.get_children():
+			assert(desk.scroll.get_global_rect().encloses(paper.get_global_rect()), "%s: scroll=%s, paper=%s" % [dimensions, desk.scroll.get_global_rect(), paper.get_global_rect()])
 		assert(desk.layout.get_rect().end.x<=dimensions.x and desk.layout.get_rect().end.y<=dimensions.y)
 		assert(desk.approve.get_global_rect().end.y<=dimensions.y)
 		for field in desk.fields: assert(field.get_global_rect().end.x<=dimensions.x)
-	state.office_task.index=6;state.erase("office_case");ui.apply_state(state,false,"",false)
-	assert(desk.finish_button.visible and not desk.approve.visible)
+	state.office_task.index=2;state.office_pay=3;state.office_remaining_ms=0;state.erase("office_case");ui.apply_state(state,false,"",false)
+	assert(desk.finish_button.visible and not desk.approve.visible and not desk.revise.visible)
+	assert(desk.finish_button.text.contains("3원") and desk.progress.text.contains("0초"))
 	desk.finish_button.pressed.emit();assert(sent.back().command=="office_finish")
 	print("PASS office: fullscreen phone/cover/fold/PC/landscape / click / mouse+touch drag / keyboard / saving lock / recovery / finish")
 	quit()

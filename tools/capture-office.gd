@@ -6,7 +6,7 @@ func _initialize() -> void:
 func run() -> void:
 	var ui=Work.instantiate();root.add_child(ui)
 	var state={"mvp_version":1,"phase":"work","week":1,"day":0,"money":80,"stamina":80,"character_id":"female",
-		"office_total":6,"office_task":{"week":1,"day":0,"index":2,"mistakes":0,"active":true,"feedback":"금액이 원본과 같은지 확인해 보세요."},
+		"office_remaining_ms":12000,"office_pay":4,"office_task":{"week":1,"day":0,"index":2,"mistakes":0,"active":true,"feedback":"금액이 원본과 같은지 확인해 보세요."},
 		"office_case":{"id":"W1-D0-2","order":{"supplier":"솔숲상사","amount":18000,"due":12},"invoice":{"supplier":"솔숲상사","amount":19500,"due":12}}}
 	ui.apply_state(state,false,"",false)
 	for i in range(16): await process_frame

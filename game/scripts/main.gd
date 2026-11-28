@@ -25,6 +25,7 @@ var request_kind := ""
 var camp_world
 var mvp_screen: Control
 var heartbeat_request := false
+var office_elapsed := 0.0
 var queued_action: Dictionary = {}
 var last_request_error := false
 var migration_attempted := false
@@ -157,6 +158,7 @@ func _layout() -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	_tick_office(delta)
 	var previous := camper_position
 	direct_movement = false
 	if state.get("phase", "") == "free":
@@ -175,6 +177,20 @@ func _process(delta: float) -> void:
 	if absf(camper_position.x - previous.x) > 0.00001:
 		facing_left = camper_position.x < previous.x
 	queue_redraw()
+
+func _tick_office(delta: float) -> void:
+	var remaining := int(state.get("office_remaining_ms", 0))
+	if work_screen == null or not state.get("office_task", {}).get("active", false) or remaining <= 0:
+		office_elapsed = 0
+		return
+	var active := not bool(JavaScriptBridge.eval("document.hidden")) if OS.has_feature("web") else DisplayServer.window_is_focused()
+	if not active or progress_check_required:
+		return
+	office_elapsed = minf(2.0, office_elapsed + delta)
+	var elapsed_ms := mini(remaining, int(office_elapsed * 1000))
+	if not busy and (elapsed_ms >= 1000 or elapsed_ms >= remaining):
+		office_elapsed = maxf(0, office_elapsed - elapsed_ms / 1000.0)
+		_send("actions/", {"command":"tick", "elapsed_ms":elapsed_ms, "version":version})
 
 func _gui_input(event: InputEvent) -> void:
 	if character_screen != null or work_screen != null:
@@ -211,7 +227,7 @@ func _draw() -> void:
 	var sprite_height := Vector2(DAY.get_size()).y * 0.22 * scale_factor
 	var cell := Vector2(CAMPER_SHEET.get_size()) / Vector2(4, 2)
 	var shared_3d: bool=camp_world!=null and camp_world.visible
-	camper_sprite.visible=not shared_3d
+	camper_sprite.visible=not shared_3d and state.get("phase", "") != "work"
 	if shared_3d:
 		var world_foot:=Vector3(((camper_position.x-.47)/.19)*camp_world.site_width-camp_world.origin_x,0,((camper_position.y-.74)/.18)*camp_world.site_depth-camp_world.origin_z)
 		camp_world.update_camper(camper_sprite.sprite_frames,camp_world.screen_point(world_foot),walking,facing_left)
@@ -303,6 +319,9 @@ func _render() -> void:
 			work_screen.reload_requested.connect(_load_state)
 			work_screen.office_action_requested.connect(func(command: String,choice: String,extra: Dictionary):
 				var payload:=extra.duplicate()
+				if command == "office_pause":
+					payload["elapsed_ms"] = int(office_elapsed * 1000)
+					office_elapsed = 0
 				payload.merge({"command":command,"choice":choice,"version":version},true)
 				_send("actions/",payload))
 			work_screen.account_requested.connect(func():

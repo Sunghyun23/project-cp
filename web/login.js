@@ -45,21 +45,79 @@ async function setupGoogle(){
 }
 (async()=>{try{account=await api('me');}catch(e){}renderAccount();try{await setupGoogle();}catch(e){message('서버에 연결하지 못했어요. 새로고침해 주세요.');}})();
 
-// 짧은 이동 체험은 선택 사항이며 시작 버튼을 잠그지 않는다.
-if(new URLSearchParams(location.search).has('account'))document.body.classList.remove('intro-mode');
-$('start-game').onclick=()=>{if(account){location.assign('/play.html');return;}document.body.classList.remove('intro-mode');requestAnimationFrame(renderGoogleButtons);};
+const introVideo=$('camping-video'), film=$('intro-film'), tutorial=$('tutorial-step');
+const onAccountPage=new URLSearchParams(location.search).has('account');
+const tutorialControls=[$('intro-field'),document.querySelector('.intro-actions')];
+let introSeen=false, step=0;
+try{introSeen=localStorage.getItem('camping-intro-complete')==='1';}catch{}
+function finishFilm(){
+ if(film.hidden)return;
+ introVideo.pause();
+ film.hidden=true;
+ tutorialControls.forEach(control=>{control.inert=false;});
+ tutorial.focus();
+}
+$('skip-film').onclick=finishFilm;
+introVideo.onended=finishFilm;
+introVideo.onerror=finishFilm;
+function finishTutorial(remember=true){
+ if(remember){
+  try{localStorage.setItem('camping-intro-complete','1');}catch{}
+  introSeen=true;
+ }
+ tutorial.hidden=true;
+ $('skip-tutorial').hidden=true;
+ $('start-game').hidden=false;
+ $('tutorial-guide').textContent='느긋한 주말을 시작해요.';
+}
+tutorial.onclick=()=>{
+ if(step===0){
+  document.body.classList.add('intro-pitched');
+  $('tutorial-guide').textContent='텐트를 펼쳤어요. 밤하늘 아래에서 잠시 쉬어봐요.';
+  tutorial.textContent='밤하늘 보기';
+ }else{
+  document.body.classList.add('intro-night');
+  finishTutorial();
+  $('start-game').focus();
+ }
+ step++;
+};
+function startGame(){
+ if(account){location.assign('/play.html');return;}
+ document.body.classList.remove('intro-mode');
+ requestAnimationFrame(renderGoogleButtons);
+}
+$('start-game').onclick=startGame;
+$('skip-tutorial').onclick=()=>{finishTutorial();startGame();};
 $('back-intro').onclick=()=>{document.body.classList.add('intro-mode');};
+if(onAccountPage){
+ document.body.classList.remove('intro-mode');
+ finishTutorial(false);
+}else if(introSeen){
+ finishTutorial();
+}else{
+ document.body.classList.remove('intro-pitched','intro-night');
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  tutorialControls.forEach(control=>{control.inert=true;});
+  film.hidden=false;
+  $('skip-film').focus();
+  introVideo.play().catch(()=>{
+   if(film.hidden)return;
+   $('skip-film').textContent='맛보기로 이동';
+  });
+ }
+}
 const camper=$('intro-camper'),field=$('intro-field');
 let camperX=.53,camperY=.66,targetX=camperX,targetY=camperY,lastFrame=0,walkClock=0;
 const held=new Set();
 field.onpointerup=event=>{const rect=field.getBoundingClientRect();targetX=Math.max(.18,Math.min(.82,(event.clientX-rect.left)/rect.width));targetY=Math.max(.55,Math.min(.73,(event.clientY-rect.top)/rect.height));field.focus();};
-window.addEventListener('keydown',event=>{if(document.body.classList.contains('intro-mode')&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(event.key)){held.add(event.key);event.preventDefault();}});
+window.addEventListener('keydown',event=>{if(document.body.classList.contains('intro-mode')&&film.hidden&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','d','w','s'].includes(event.key)){held.add(event.key);event.preventDefault();}});
 window.addEventListener('keyup',event=>held.delete(event.key));window.addEventListener('blur',()=>held.clear());
 function introFrame(now){
  const delta=Math.min(.05,(now-lastFrame)/1000||0);lastFrame=now;
- if(document.body.classList.contains('intro-mode')&&!document.hidden&&document.hasFocus()){
+ if(document.body.classList.contains('intro-mode')&&film.hidden&&film.hidden&&!document.hidden&&document.hasFocus()){
   let dx=(held.has('d')||held.has('ArrowRight')?1:0)-(held.has('a')||held.has('ArrowLeft')?1:0),dy=(held.has('s')||held.has('ArrowDown')?1:0)-(held.has('w')||held.has('ArrowUp')?1:0);
-  let pad=null;try{pad=Array.from(navigator.getGamepads?.()||[]).find(Boolean);}catch(e){}if(pad){if(Math.abs(pad.axes[0]||0)>.2)dx+=pad.axes[0];if(Math.abs(pad.axes[1]||0)>.2)dy+=pad.axes[1];if(pad.buttons[0]?.pressed&&!padStartHeld){padStartHeld=true;$('start-game').click();}if(!pad.buttons[0]?.pressed)padStartHeld=false;}
+  let pad=null;try{pad=Array.from(navigator.getGamepads?.()||[]).find(Boolean);}catch(e){}if(pad){if(Math.abs(pad.axes[0]||0)>.2)dx+=pad.axes[0];if(Math.abs(pad.axes[1]||0)>.2)dy+=pad.axes[1];if(pad.buttons[0]?.pressed&&!padStartHeld){padStartHeld=true;(introSeen?$('start-game'):tutorial).click();}if(!pad.buttons[0]?.pressed)padStartHeld=false;}
   if(dx||dy){targetX=Math.max(.18,Math.min(.82,camperX+dx*.15*delta));targetY=Math.max(.55,Math.min(.73,camperY+dy*.10*delta));}
   const distance=Math.hypot(targetX-camperX,targetY-camperY),moving=distance>.001,step=Math.min(distance,.12*delta);
   if(moving){const direction=targetX-camperX;camperX+=(targetX-camperX)/distance*step;camperY+=(targetY-camperY)/distance*step;camper.style.transform='translate(-50%,-100%) scaleX('+(direction<0?-1:1)+')';}

@@ -205,7 +205,9 @@ final class MvpRules {
     }
     static void tick(Map<String,Object>s,Map<String,Object>body) {
         int elapsed=integer(body,"elapsed_ms",0,2000);String phase=(String)s.get("phase");
-        if(Set.of("packing","return_pack").contains(phase)&&Boolean.TRUE.equals(s.get("pack_started"))) {
+        if(phase.equals("work")) {
+            DocumentWork.tick(s,elapsed);
+        } else if(Set.of("packing","return_pack").contains(phase)&&Boolean.TRUE.equals(s.get("pack_started"))) {
             s.put("pack_remaining_ms",Math.max(0,n(s,"pack_remaining_ms")-elapsed));
             if(n(s,"pack_remaining_ms")==0)finishPacking(s);
         } else if(camping(phase)) {
@@ -226,13 +228,15 @@ final class MvpRules {
         } else if(phase.equals("work")&&command.equals("office_start")) {
             DocumentWork.start(s);
         } else if(phase.equals("work")&&command.equals("office_pause")) {
+            if(body.containsKey("elapsed_ms"))DocumentWork.tick(s,integer(body,"elapsed_ms",0,2000));
             DocumentWork.task(s).put("active",false);
         } else if(phase.equals("work")&&command.equals("office_review")) {
             DocumentWork.review(s,choice,body);
         } else if(phase.equals("work")&&command.equals("office_finish")) {
-            need(n(DocumentWork.task(s),"index")==DocumentWork.TOTAL,"서류 검토를 먼저 마쳐 주세요.");
+            need(DocumentWork.remaining(DocumentWork.task(s))==0,"20초 업무 시간이 끝나면 퇴근할 수 있어요.");
             finishWork(s);
         } else if(phase.equals("work")&&command.equals("work")) {
+            need(!s.containsKey("office_task"),"시작한 서류 검토 업무를 먼저 마쳐 주세요.");
             finishWork(s);
         } else if(phase.equals("place")&&command.equals("choose_place")) {
             need(Set.of("lake","pine").contains(choice),"장소를 골라 주세요.");charge(s,choice.equals("lake")?15:30);s.put("place",choice);s.put("phase","equipment");
@@ -292,8 +296,9 @@ final class MvpRules {
     }
 
     static void finishWork(Map<String,Object> s) {
-        add(s,"money",10);add(s,"week_income",10);s.put("stamina",Math.max(0,n(s,"stamina")-6));add(s,"day",1);
-        s.remove("office_task");s.remove("office_case");s.remove("office_total");
+        int pay=s.containsKey("office_task")?DocumentWork.pay(DocumentWork.task(s)):DocumentWork.BASE_PAY;
+        add(s,"money",pay);add(s,"week_income",pay);s.put("stamina",Math.max(0,n(s,"stamina")-6));add(s,"day",1);
+        s.remove("office_task");s.remove("office_case");s.remove("office_remaining_ms");s.remove("office_pay");
         if(n(s,"day")==5)s.put("phase","place");
     }
 }
