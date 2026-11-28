@@ -13,6 +13,9 @@ const FIRST_WEEK = preload("res://ui/screens/first_week.tscn")
 const CHARACTER_SELECT = preload("res://ui/screens/character_select.tscn")
 const CHARACTER_CATALOG = preload("res://ui/components/character_catalog.gd")
 const HUD = preload("res://scripts/camp_hud.gd")
+const CampActor = preload("res://scripts/camp_actor.gd")
+var actor = CampActor.new()
+var actor_message := ""
 const SAVE_PATH = "user://prototype_session.cfg"
 var session_save_path := SAVE_PATH
 const TITLES = {"work": "주말을 기다리는 평일", "shopping": "이번 저녁엔 뭘 먹을까?", "packing": "트렁크에 주말을 담아요", "setup": "나만의 작은 캠프", "free": "잠깐, 아무것도 하지 않기", "dinner": "밖에서 먹으면 더 맛있지", "night": "불 앞에서 보내는 밤", "breakfast": "느긋한 아침 한 입", "teardown": "머문 자리를 정리해요", "settlement": "잘 쉬었다. 다음 주에도!"}
@@ -54,6 +57,8 @@ var direct_movement := false
 
 func _ready() -> void:
 	UI_INPUT.ensure()
+	actor.installation_ready.connect(func():
+		if mvp_screen != null: mvp_screen.save_installation())
 	focus_mode = Control.FOCUS_ALL
 	preload("res://ui/ui_metrics.gd").configure_window(get_tree().root)
 	get_tree().root.size_changed.connect(func():
@@ -157,8 +162,29 @@ func _layout() -> void:
 	if hud!=null:hud.fit.call_deferred()
 	queue_redraw()
 
+func _camp_is_active() -> bool:
+	return not bool(JavaScriptBridge.eval("document.hidden")) if OS.has_feature("web") else DisplayServer.window_is_focused()
+
 func _process(delta: float) -> void:
 	_tick_office(delta)
+	if camp_world != null and camp_world.visible:
+		var active := _camp_is_active()
+		if active and not progress_check_required:
+			if state.get("phase","") == "free":
+				var focused := get_viewport().gui_get_focus_owner()
+				var direction := Vector2.ZERO
+				if focused == null or focused == self or (mvp_screen != null and mvp_screen.viewing_scenery):
+					direction=Input.get_vector("camp_left","camp_right","camp_up","camp_down")
+				else:
+					direction=Vector2(float(Input.is_physical_key_pressed(KEY_D))-float(Input.is_physical_key_pressed(KEY_A)),float(Input.is_physical_key_pressed(KEY_S))-float(Input.is_physical_key_pressed(KEY_W)))
+				var along: Vector3=camp_world.camera.global_basis.x*direction.x-camp_world.camera.global_basis.y*direction.y
+				actor.direct(Vector2(along.x,along.z).normalized()*direction.length(),delta)
+				if direction.length()>.1: actor_message=""
+				var use_key := Input.is_action_just_pressed("ui_accept")
+				if use_key and (focused == self or focused == null) and mvp_screen != null and mvp_screen.viewing_scenery: _seat_nearest()
+			actor.advance(delta)
+		queue_redraw()
+		return
 	var previous := camper_position
 	direct_movement = false
 	if state.get("phase", "") == "free":
@@ -192,18 +218,34 @@ func _tick_office(delta: float) -> void:
 		office_elapsed = maxf(0, office_elapsed - elapsed_ms / 1000.0)
 		_send("actions/", {"command":"tick", "elapsed_ms":elapsed_ms, "version":version})
 
-func _gui_input(event: InputEvent) -> void:
-	if character_screen != null or work_screen != null:
+func _seat_nearest() -> void:
+	if not state.get("field",{}).has("chair"): return
+	var chair: Dictionary=state.field.chair
+	var point := Vector3(float(chair.x),float(chair.y),float(chair.z))
+	if actor.position.distance_to(point)>2.5:
+		actor_message="의자 가까이에서 확인 버튼을 눌러 주세요"
 		return
-	var pressed: bool = event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed
-	if not pressed or not _scene_rect().has_point(event.position):
+	if not actor.seat(point,CAMP_EDITOR.rotation_of(chair)):
+		actor_message="의자까지 갈 수 있는 길이 없어요"
+
+func _gui_input(event: InputEvent) -> void:
+	if character_screen != null or work_screen != null: return
+	var pressed: bool = (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) or (event is InputEventScreenTouch and event.pressed)
+	if not pressed or not _scene_rect().has_point(event.position): return
+	if camp_world.visible:
+		if state.get("phase","") != "free" or progress_check_required: return
+		grab_focus()
+		var item: String=camp_world.pick_item(event.position)
+		if item == "chair" and state.get("field",{}).has("chair"):
+			var p: Dictionary=state.field.chair
+			if not actor.seat(Vector3(float(p.x),float(p.y),float(p.z)),CAMP_EDITOR.rotation_of(p)):
+				actor_message="의자까지 갈 수 있는 길이 없어요"
+		else:
+			var at=camp_world.ground_point(event.position,0)
+			if at!=null: actor.move_to(Vector3(at)+Vector3(camp_world.origin_x,0,camp_world.origin_z))
+		accept_event()
 		return
 	grab_focus()
-	if camp_world.visible:
-		var at=camp_world.ground_point(event.position,0)
-		if at!=null:
-			camper_target=Vector2(.47+clampf((at.x+camp_world.origin_x)/camp_world.site_width,0,1)*.19,.74+clampf((at.z+camp_world.origin_z)/camp_world.site_depth,0,1)*.18)
-		return
 	var source := _source_rect()
 	var uv: Vector2 = ((event.position - _scene_rect().position) / _scene_rect().size * source.size + source.position) / Vector2(DAY.get_size())
 	camper_target = Vector2(clampf(uv.x, 0.47, 0.66), clampf(uv.y, 0.74, 0.92))
@@ -232,8 +274,11 @@ func _draw() -> void:
 	var shared_3d: bool=camp_world!=null and camp_world.visible
 	camper_sprite.visible=not shared_3d and state.get("phase", "") != "work"
 	if shared_3d:
-		var world_foot:=Vector3(((camper_position.x-.47)/.19)*camp_world.site_width-camp_world.origin_x,0,((camper_position.y-.74)/.18)*camp_world.site_depth-camp_world.origin_z)
-		camp_world.update_camper(camper_sprite.sprite_frames,camp_world.screen_point(world_foot),walking,facing_left)
+		var world_foot: Vector3=actor.position-Vector3(camp_world.origin_x,0,camp_world.origin_z)
+		var pose: String=actor.animation()
+		camp_world.update_camper(camper_sprite.sprite_frames,camp_world.screen_point(world_foot),pose == "walk",actor.facing_left if actor.mode != "sit" else false,pose,.1 if actor.mode == "sit" else 0.0)
+		if mvp_screen != null and mvp_screen.viewing_scenery:
+			mvp_screen.scenery_hint.text=actor_message if not actor_message.is_empty() else "바닥: 이동 · 의자: 앉기\nEsc / B: 종료" if size.x<600 else "바닥/방향키: 이동 · 의자/확인: 앉기 · Esc/B: 종료"
 		camp_world.effects.night=night
 	camper_sprite.position=foot
 	camper_sprite.scale=Vector2.ONE*sprite_height/(cell.y*.9)
@@ -291,6 +336,9 @@ func _render() -> void:
 		mvp_screen = null
 	var show_3d_camp: bool = state.has("mvp_version") and state.get("phase", "") in ["setup","free","cooking","meal_ready","sleep_required","teardown","return_pack"]
 	camp_world.visible = show_3d_camp
+	if not show_3d_camp or state.get("phase","") != "setup":
+		if actor.mode in ["approach_install","install","saving"]: actor.cancel()
+	if state.get("phase","") != "free" and actor.mode in ["sit","approach_seat","walk"]: actor.cancel()
 	if show_3d_camp:
 		camp_world.readonly = state.get("phase", "") != "setup"
 		if state.get("phase", "") != "setup" or mvp_screen == null:
@@ -356,6 +404,10 @@ func _render() -> void:
 				if OS.has_feature("web"): JavaScriptBridge.eval("window.location.assign('/?account=1')"))
 			add_child(mvp_screen)
 			mvp_screen.use_field_editor(camp_world)
+			mvp_screen.installation_requested.connect(func(id: String, point: Vector3, angle: int):
+				if not actor.install(id,point,angle):
+					mvp_screen.install_failed("장비 옆까지 갈 수 없어요 · 위치를 바꾸거나 취소해 주세요"))
+			mvp_screen.installation_cancelled.connect(func(): actor.cancel())
 			mvp_screen.effects_toggled.connect(func(value: bool): camp_world.effects.enabled=value)
 			mvp_screen.night_preview_toggled.connect(func(value: bool):
 				preview_mode="night" if value else "day"
@@ -365,6 +417,7 @@ func _render() -> void:
 		mvp_screen.night_button.set_pressed_no_signal(_is_night())
 		mvp_screen.night_button.text="밤" if _is_night() else "낮"
 		mvp_screen.apply_state(state, busy and not heartbeat_request, message if last_request_error else "", progress_check_required, busy)
+		if show_3d_camp: actor.configure(state,camp_world)
 		queue_redraw()
 		return
 	for child in content.get_children():

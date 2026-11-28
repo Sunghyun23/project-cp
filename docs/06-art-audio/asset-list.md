@@ -89,9 +89,9 @@
 | anim_walk | 이동·방향 전환 | [F1]·[F4]·프로토타입 | 4프레임·좌우 반전 있음 → 필요한 방향 수·손 장비·속도 결정 |
 | anim_work | 서류 처리·알바 동작 또는 손 조작 | [F1]·도출안 | 없음 → 세 업무 비교안·알바 규칙에 맞춰 선정 |
 | anim_load | 장비 들기·트렁크 적재·꺼내기 | [F1]·도출안 | 없음 → 직접 조작 채택 범위·장비 크기와 연동 |
-| anim_setup_pack | 텐트·가구 설치와 정리 동작 | [F1]·도출안 | 없음 → 몸 동작·장비 상태 교체·UI 중 표현 선택 |
+| anim_setup_pack | 텐트·가구 설치와 정리 동작 | D164 사용자 확정 | 설치: 확정 후 이동·손동작 4프레임. 철거 동작 확장은 미정 |
 | anim_cook_eat | 재료 꽂기·굽기·조리·먹기 | [F2]·도출안 | 없음 → 조리 확대 화면은 D062로 채택. 확대 화면 안의 손·도구·캐릭터 동작 구성은 미정. 현재는 버튼 처리 |
-| anim_rest | 풍경 감상·의자 휴식·불멍·별구경 | [F1]·도출안 | 없음 → 앉기·바라보기 등 필요한 자세 선택. 휴식 자동 종료로 바꾸지 않음 |
+| anim_rest | 풍경 감상·의자 휴식·불멍·별구경 | D162~D163 사용자 확정 | 감상 이동·의자 네 방향 앉기 연결. 별구경 등 추가 동작은 미정 |
 | anim_sleep | 취침·아침 전환 표현 | [F1]·도출안 | 없음 → 캐릭터 포즈·화면 전환 중 선택. 침대·침낭 도입은 미확정 |
 | anim_breakfast | 커피·토스트 준비·마시기·먹기 | [F1]·[F2]·도출안 | 부분: 캐릭터가 컵을 들고 있음 → 컵 소품 분리·필요 동작 선정 |
 
@@ -276,3 +276,7 @@ MVP 추가 에셋: `camping-props.png`(2D 장비 6종), `camper-male-rain.png`·
 ## 소나무 숲 야간 변형 — D161
 
 `game/assets/pixel/places/pine/night.png`: 기존 `campsite-pine-terrain.png`의 구도를 유지한 1672×941 빈 야간 배경. 내장 image_gen으로 제작하고 낮밤 자동 전환·수동 미리보기·캡처 도구에 연결한다. 이전 단색 보정을 대체한다. 배치 경계·나무 금지 구역은 기존 장소 데이터를 유지하며 [제작 메타데이터](../../art/source/places/pine/asset.json)·[프롬프트](../../art/source/places/pine/prompt.txt)에 기록한다. 최종 아트 승인과 Android 실기기 검증은 별도다.
+
+## 캐릭터 앉기·설치 스프라이트 — D163~D164
+
+`game/assets/pixel/characters/{male,female}/{basic,rain}-actions.png`: 내장 image_gen으로 기존 남녀·의상별 시트를 참조해 만든 1536×1024 RGBA, 4열×2행, 셀 384×512. 위 행은 의자 0/90/180/270도별 앉기, 아래 행은 손을 움직이는 설치 4프레임이다. 의자·장비를 캐릭터 시트에 합성하지 않는다. [메타데이터·전체 프롬프트](../../game/assets/pixel/characters/actions-metadata.json)에 참조·발 기준점·앉기 골반 기준점·프레임을 기록한다. `character_catalog.gd`가 기존 idle/walk와 결합한다. 의자 그림의 방향별 좌석 기준점은 기존 `camping-props-directions-metadata.json`의 `chair.interaction`에 기록하고 실제 착석 그림을 맞춘다. 의자의 stackable=false와 아이템 점유/받침 판정은 유지한다. 최종 아트 승인과 Android 실기기 검증은 별도다.

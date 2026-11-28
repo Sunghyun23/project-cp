@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "character_action_sheet",
+  "status": "runtime_connected_macOS_GPU_verified",
+  "metadata": "game/assets/pixel/characters/actions-metadata.json",
+  "variants": [
+    "game/assets/pixel/characters/female/basic-actions.png",
+    "game/assets/pixel/characters/male/basic-actions.png",
+    "game/assets/pixel/characters/female/rain-actions.png",
+    "game/assets/pixel/characters/male/rain-actions.png"
+  ],
+  "source": "built-in image_gen; generated raster PNGs, no editable layers",
+  "review": "최종 아트·Android 실기기·물리 패드 검증은 별도"
+}

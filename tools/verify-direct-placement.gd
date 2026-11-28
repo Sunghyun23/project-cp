@@ -17,6 +17,7 @@ func run() -> void:
 	root.add_child(world)
 	ui = Flow.instantiate()
 	root.add_child(ui)
+	ui.set_process(false)
 	ui.use_field_editor(world)
 	ui.action_requested.connect(func(command,choice,extra): sent={"command":command,"id":choice,"angle":extra.get("rotation_degrees",0),"point":Vector3(extra.get("x",0),extra.get("z",0),extra.get("y",0))})
 	ui.apply_state(snapshot,false,"",false,false)
@@ -43,6 +44,7 @@ func run() -> void:
 	for angle in [90,180,270,0]:
 		var old_texture: Texture2D=world.selected_node.get_child(0).texture
 		ui.field_rotate.pressed.emit()
+		ui.commit_field();ui.save_installation()
 		assert(sent.angle==angle and ui.drop_pending)
 		assert(world.selected_node.get_child(0).texture.region != old_texture.region)
 		accept_drop()
@@ -54,6 +56,7 @@ func run() -> void:
 		else:
 			var event:=InputEventKey.new(); event.physical_keycode=KEY_R; event.pressed=true; Input.parse_input_event(event)
 		await process_frame
+		ui.commit_field();ui.save_installation()
 		assert(ui.drop_pending)
 		accept_drop()
 	for dimensions_value in [Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900)]:
@@ -85,6 +88,9 @@ func drag(id: String, target: Vector3, touch: bool) -> void:
 		var press := InputEventMouseButton.new(); press.button_index=MOUSE_BUTTON_LEFT; press.position=start; press.pressed=true; Input.parse_input_event(press); await process_frame
 		var motion := InputEventMouseMotion.new(); motion.position=end; motion.button_mask=MOUSE_BUTTON_MASK_LEFT; Input.parse_input_event(motion); await process_frame
 		var release := InputEventMouseButton.new(); release.button_index=MOUSE_BUTTON_LEFT; release.position=end; release.pressed=false; Input.parse_input_event(release); await process_frame
+	if ui.preview_dirty:
+		assert(not ui.drop_pending)
+		ui.commit_field();ui.save_installation()
 func accept_drop() -> void:
 	snapshot.field[sent.id] = {"x":sent.point.x,"y":sent.point.y,"z":sent.point.z,"rotated":sent.angle%180!=0,"rotation_degrees":sent.angle}
 	ui.apply_state(snapshot,false,"",false,false)

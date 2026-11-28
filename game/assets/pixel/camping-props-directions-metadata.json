@@ -129,7 +129,32 @@
             242
           ]
         }
-      ]
+      ],
+      "interaction": {
+        "action": "sit",
+        "seat_height_game_z": 0.5,
+        "seat_anchor_px_by_angle": {
+          "0": [
+            154,
+            148
+          ],
+          "90": [
+            100,
+            145
+          ],
+          "180": [
+            150,
+            145
+          ],
+          "270": [
+            102,
+            148
+          ]
+        },
+        "approach_distance": 0.95,
+        "standing_on_move": true,
+        "stackable_unchanged": false
+      }
     },
     "table": {
       "row": 2,

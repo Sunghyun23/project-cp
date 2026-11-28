@@ -15,6 +15,7 @@ var footprint_material: StandardMaterial3D
 var hit_images := {}
 var fallback_catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/campsites.json"))
 var interaction_locked := false
+var pending_item := ""
 var dragging_item := false
 var active_pointer := -2
 var press_point := Vector2.ZERO
@@ -328,16 +329,26 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 		if field.has(item_id): sources[item_id]=item.position
 	effects.update_sources(sources)
 
-func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, facing_left: bool) -> void:
+func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, facing_left: bool, pose: String = "", seat_height: float = 0.0) -> void:
 	var at=ground_point(screen_foot,0)
 	if at==null: return
 	camper_3d.visible=true
 	if camper_3d.sprite_frames!=frames: camper_3d.sprite_frames=frames
-	var animation_name: StringName=&"walk" if walking else &"idle"
+	var animation_name: StringName=StringName(pose) if not pose.is_empty() else &"walk" if walking else &"idle"
 	if camper_3d.animation!=animation_name: camper_3d.play(animation_name)
 	var frame: Texture2D=frames.get_frame_texture(animation_name,0)
 	camper_3d.pixel_size=2.6/float(frame.get_height())
-	camper_3d.position=Vector3(at)+camera.global_basis.y*2.6*.44
+	camper_3d.position=Vector3(at)+Vector3(0,seat_height,0)+camera.global_basis.y*2.6*.44
+	if String(animation_name).begins_with("sit_"):
+		var angle := int(String(animation_name).trim_prefix("sit_"))
+		for item in items_root.get_children():
+			if item.get_child(1).get_meta("item") != "chair": continue
+			var chair_sprite: Sprite3D=item.get_child(0)
+			var anchors: Dictionary=Assets.directional_meta.items.chair.interaction.seat_anchor_px_by_angle
+			var anchor: Array=anchors[str(angle)]
+			var anchor_world := chair_sprite.global_position+camera.global_basis.x*(float(anchor[0])-128)*chair_sprite.pixel_size-camera.global_basis.y*(float(anchor[1])-128)*chair_sprite.pixel_size
+			camper_3d.position=anchor_world+camera.global_basis.y*(345.0/512.0-.5)*2.6+camera.global_basis.z*.025
+			break
 	camper_3d.flip_h=facing_left
 
 func to_engine_site(source: Dictionary) -> Dictionary:
@@ -492,7 +503,7 @@ func ground_point(point: Vector2, height: float) -> Variant:
 func begin_drag(point: Vector2, pointer: int) -> void:
 	if readonly or interaction_locked or dragging_item: return
 	var id := pick_item(point)
-	if id.is_empty(): return
+	if id.is_empty() or (not pending_item.is_empty() and id != pending_item): return
 	active_pointer = pointer
 	dragging_item = true
 	moved_item = false

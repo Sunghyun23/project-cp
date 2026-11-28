@@ -4,6 +4,8 @@ signal action_requested(command: String, choice: String, extra: Dictionary)
 signal reload_requested
 signal effects_toggled(enabled: bool)
 signal night_preview_toggled(enabled: bool)
+signal installation_requested(id: String, point: Vector3, angle: int)
+signal installation_cancelled
 signal account_requested
 const Assets = preload("res://ui/components/mvp_assets.gd")
 const Catalog = preload("res://ui/components/character_catalog.gd")
@@ -31,6 +33,10 @@ var effects_button: Button
 var night_button: Button
 var viewing_scenery := false
 var scenery_hint: Label
+var scenery_exit: Button
+var preview_dirty := false
+var installing := false
+var placement_cancel: Button
 var packing_confirm := false
 var show_forecast := false
 var elapsed := 0.0
@@ -174,12 +180,17 @@ func _ready() -> void:
 	var placement_actions := HBoxContainer.new()
 	placement_bar.add_child(placement_actions)
 	placement_commit = Action.instantiate()
-	placement_commit.text = "놓기"
+	placement_commit.text = "확정"
 	placement_commit.visible = false
 	placement_commit.theme_type_variation = "PrimaryButton"
 	placement_commit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	placement_commit.pressed.connect(commit_field)
 	placement_actions.add_child(placement_commit)
+	placement_cancel = Action.instantiate()
+	placement_cancel.text = "취소"
+	placement_cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	placement_cancel.pressed.connect(cancel_field)
+	placement_actions.add_child(placement_cancel)
 	placement_controls = VBoxContainer.new()
 	placement_controls.add_theme_constant_override("separation",8)
 	add_child(placement_controls)
@@ -194,7 +205,12 @@ func _ready() -> void:
 	placement_done.pressed.connect(func(): act("setup_done"))
 	placement_controls.add_child(placement_done)
 	placement_done.custom_minimum_size = Vector2(144,56)
-	scenery_hint=label("터치 · Esc · 패드 B로 복귀")
+	scenery_exit=Action.instantiate()
+	scenery_exit.text="감상 종료"
+	scenery_exit.custom_minimum_size=Vector2(120,52)
+	scenery_exit.pressed.connect(end_scenery)
+	add_child(scenery_exit)
+	scenery_hint=label("바닥: 이동 · 의자: 앉기 · Esc / 패드 B: 종료")
 	scenery_hint.add_theme_color_override("font_color",Color("fff7df"))
 	scenery_hint.add_theme_color_override("font_shadow_color",Color("213428"))
 	scenery_hint.add_theme_constant_override("shadow_offset_x",2)
@@ -224,8 +240,9 @@ func names(ids: Array) -> String:
 	return ", ".join(values) if not values.is_empty() else "없음"
 
 func act(command: String, choice: String = "", extra: Dictionary = {}) -> void:
-	if not locked:
-		action_requested.emit(command, choice, extra)
+	if locked: return
+	if command != "tick" and phase() == "setup" and (preview_dirty or installing or drop_pending): return
+	action_requested.emit(command, choice, extra)
 
 func button(parent: Node, caption: String, command: String, choice: String = "", enabled: bool = true, primary: bool = false) -> Button:
 	var node := Action.instantiate()
@@ -248,8 +265,19 @@ func note(text: String, severity: int = 0) -> void:
 	content.add_child(node)
 
 func apply_state(value: Dictionary, saving: bool, message: String, must_check: bool, request_busy: bool) -> void:
+	if must_check and (preview_dirty or installing or drop_pending):
+		installation_cancelled.emit()
+		preview_dirty=false
+		installing=false
+		drop_pending=false
+		field_initialized_for=""
 	if value.get("phase", "") != state.get("phase", ""):
 		packing_confirm=false
+		if preview_dirty or installing:
+			installation_cancelled.emit()
+		preview_dirty=false
+		installing=false
+		drop_pending=false
 	if value.get("phase", "") != "free" or must_check or not message.is_empty():
 		viewing_scenery=false
 	if state.get("phase", "") != "setup" and value.get("phase", "") == "setup":
@@ -267,6 +295,9 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	var drop_matches := not saved_drop.is_empty() and Vector3(float(saved_drop.get("x",0)),float(saved_drop.get("y",0)),float(saved_drop.get("z",0))).is_equal_approx(field_position) and Editor3D.rotation_of(saved_drop) == field_rotation
 	if drop_pending and not request_busy and (drop_matches or not message.is_empty() or phase() != "setup"):
 		drop_pending = false
+		installing = false
+		preview_dirty = false
+		installation_cancelled.emit()
 		placement_error = message if not message.begins_with("서버 저장 완료") else ""
 		field_initialized_for = ""
 		if phase() == "setup": render_body()
@@ -295,13 +326,14 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 		status.severity = 1 if must_check or not message.is_empty() else 0
 	for node in action_buttons:
 		if is_instance_valid(node):
-			node.disabled = locked or not node.get_meta("available", true)
-	placement_commit.disabled = locked or selected_item.is_empty()
+			node.disabled = locked or (phase() == "setup" and (preview_dirty or installing or drop_pending)) or not node.get_meta("available", true)
+	placement_commit.disabled = locked or selected_item.is_empty() or installing or drop_pending
 	placement_done.disabled = locked or drop_pending
 	placement_message.text = message.split("  ·")[0] if phase() == "setup" and not message.is_empty() and not message.begins_with("서버 저장 완료") else "물건을 잡아 끌어서 놓으세요"
 	placement_message.visible = not placement_message.text.is_empty()
 	if field_editor != null:
-		field_editor.interaction_locked = locked or drop_pending
+		field_editor.interaction_locked = locked or drop_pending or installing
+		field_editor.pending_item = selected_item if preview_dirty else ""
 		field_editor.configure(state, selected_item if phase() == "setup" else "", field_position, field_rotation)
 		update_placement_caption()
 	if board != null:
@@ -463,7 +495,7 @@ func restore_board_focus() -> void:
 func use_field_editor(editor) -> void:
 	field_editor = editor
 	field_editor.item_selected.connect(func(id: String):
-		if phase() != "setup": return
+		if phase() != "setup" or preview_dirty or installing or drop_pending: return
 		selected_item = id
 		placement_error = ""
 		field_initialized_for = ""
@@ -491,15 +523,21 @@ func use_field_editor(editor) -> void:
 		if phase() != "setup" or locked: return
 		selected_item = id
 		field_position = point
-		drop_pending = true
-		field_editor.interaction_locked = true
-		act("place_item",id,{"x":point.x,"y":point.z,"z":point.y,"rotated":field_rotation%180!=0,"rotation_degrees":field_rotation,"coordinate_system":"z_up"}))
+		preview_dirty = true
+		field_initialized_for = selected_item
+		field_editor.pending_item = selected_item
+		placement_error = ""
+		update_placement_visibility()
+		update_placement_caption())
 
 func update_placement_visibility() -> void:
 	if dock == null or placement_bar == null: return
 	var placing := phase() == "setup"
 	dock.visible = (not placing or not tools_hidden or show_forecast) and not viewing_scenery
 	if scenery_hint != null: scenery_hint.visible=viewing_scenery
+	if scenery_exit != null: scenery_exit.visible=viewing_scenery
+	placement_commit.visible = placing and preview_dirty
+	placement_cancel.visible = placing and (preview_dirty or installing)
 	placement_bar.visible = placing and tools_hidden and not show_forecast
 	placement_controls.visible = placement_bar.visible
 	placement_done.visible = placement_bar.visible
@@ -509,27 +547,32 @@ func begin_scenery() -> void:
 	if locked or phase() != "free": return
 	show_forecast=false
 	viewing_scenery=true
+	get_viewport().gui_release_focus()
 	update_placement_visibility()
 	if not state.get("rested",false): act("rest")
 
+func end_scenery() -> void:
+	viewing_scenery=false
+	update_placement_visibility()
+
 func _input(event: InputEvent) -> void:
 	if not viewing_scenery: return
-	var pointer: bool = (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed)
-	# 감상 중에도 상단 낮/밤·효과 버튼은 바로 사용할 수 있다.
-	if pointer and header.get_global_rect().has_point(event.position): return
-	var key: bool = event is InputEventKey and event.pressed and event.keycode in [KEY_ESCAPE,KEY_ENTER,KEY_SPACE,KEY_BACK]
-	var pad: bool = event is InputEventJoypadButton and event.pressed and event.button_index in [JOY_BUTTON_A,JOY_BUTTON_B]
-	if pointer or key or pad:
-		viewing_scenery=false
-		update_placement_visibility()
+	var key: bool = event is InputEventKey and event.pressed and event.keycode in [KEY_ESCAPE,KEY_BACK]
+	var pad: bool = event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_B
+	if key or pad:
+		end_scenery()
 		get_viewport().set_input_as_handled()
 
 func update_placement_caption() -> void:
 	if phase() != "setup" or field_editor == null: return
-	placement_done.disabled = locked or drop_pending or field_editor.dragging_item
-	field_rotate.disabled = placement_done.disabled or selected_item.is_empty()
+	placement_done.disabled = locked or preview_dirty or installing or drop_pending or field_editor.dragging_item
+	field_rotate.disabled = locked or installing or drop_pending or field_editor.dragging_item or selected_item.is_empty()
+	placement_commit.visible = preview_dirty
+	placement_commit.disabled = locked or installing or drop_pending or field_editor.dragging_item or not field_editor.placement_reason.is_empty()
+	placement_cancel.visible = preview_dirty or installing
+	placement_cancel.disabled = drop_pending or check_required
 	var reason: String = placement_error if not placement_error.is_empty() else field_editor.placement_reason
-	var hint := "저장 중…" if drop_pending else "끌어서 배치 · 초록이면 놓을 수 있어요" if reason.is_empty() else reason
+	var hint := "저장 중…" if drop_pending else "캐릭터가 이동해 설치 중이에요" if installing else "확정하면 캐릭터가 와서 설치해요 · 취소 가능" if preview_dirty else "끌어서 위치를 정해 주세요" if reason.is_empty() else reason
 	placement_message.text = "%s · %d°\nX %.2f · Y %.2f · Z %.2f\n%s" % [item_name(selected_item),field_rotation,field_position.x,field_position.z,field_position.y,hint]
 	fit.call_deferred()
 
@@ -553,10 +596,20 @@ func rotate_field() -> void:
 		update_placement_caption()
 		return
 	placement_error = ""
-	commit_field()
+	preview_dirty = true
+	field_initialized_for = selected_item
+	field_editor.pending_item = selected_item
+	update_placement_visibility()
+	update_placement_caption()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if phase() != "setup": return
+	var cancel_key: bool = event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE
+	var cancel_pad: bool = event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_B
+	if (cancel_key or cancel_pad) and (preview_dirty or installing):
+		cancel_field()
+		get_viewport().set_input_as_handled()
+		return
 	var rotate_key: bool = event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_R
 	var rotate_pad: bool = event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_Y
 	if rotate_key or rotate_pad:
@@ -564,12 +617,57 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func commit_field() -> void:
-	if selected_item.is_empty() or locked or drop_pending: return
-	drop_pending = true
+	if selected_item.is_empty() or locked or drop_pending or installing or not preview_dirty: return
+	var reason: String = field_editor.validation_reason(selected_item,field_position)
+	if not reason.is_empty():
+		placement_error=reason
+		update_placement_caption()
+		return
+	installing = true
 	field_editor.interaction_locked = true
 	tools_hidden = true
 	update_placement_visibility()
-	act("place_item",selected_item,{"x":field_position.x,"y":field_position.z,"z":field_position.y,"rotated":field_rotation%180!=0,"rotation_degrees":field_rotation,"coordinate_system":"z_up"})
+	update_placement_caption()
+	installation_requested.emit(selected_item,field_position,field_rotation)
+
+func save_installation() -> void:
+	if not installing or drop_pending or phase() != "setup" or check_required: return
+	drop_pending = true
+	update_placement_caption()
+	# Only the finished animation issues one mutation; preview and cancellation never save.
+	action_requested.emit("place_item",selected_item,{"x":field_position.x,"y":field_position.z,"z":field_position.y,"rotated":field_rotation%180!=0,"rotation_degrees":field_rotation,"coordinate_system":"z_up"})
+
+func install_failed(reason: String) -> void:
+	installing=false
+	field_editor.interaction_locked=false
+	placement_error=reason
+	update_placement_caption()
+
+func cancel_field() -> void:
+	if drop_pending or check_required: return
+	field_editor.end_drag(true)
+	installation_cancelled.emit()
+	installing=false
+	preview_dirty=false
+	placement_error=""
+	field_initialized_for=""
+	field_editor.interaction_locked=locked
+	field_editor.pending_item=""
+	build_field_position()
+	field_editor.configure(state,selected_item,field_position,field_rotation)
+	update_placement_visibility()
+	update_placement_caption()
+
+func build_field_position() -> void:
+	if state.get("field",{}).has(selected_item):
+		var p: Dictionary=state.field[selected_item]
+		field_position=Vector3(float(p.x),float(p.y),float(p.z))
+		field_rotation=Editor3D.rotation_of(p)
+	else:
+		var index := maxi(0,selected_ids.find(selected_item))
+		field_position=field_editor.staging_position(index)
+		field_rotation=0
+	field_initialized_for=selected_item
 
 func build_field_3d() -> void:
 	selected_ids = state.cargo.keys()
@@ -588,7 +686,7 @@ func build_field_3d() -> void:
 			field_rotation = 0
 	if field_editor != null:
 		field_editor.configure(state,selected_item,field_position,field_rotation)
-	content.add_child(label("물건을 직접 잡아 끌어 배치해요. 손을 놓으면 저장됩니다."))
+	content.add_child(label("물건을 끌어 위치를 정하고 확정하면 캐릭터가 와서 설치해요. 취소하면 이전 상태로 돌아가요."))
 	content.add_child(label("선택한 장비 · " + item_name(selected_item)))
 	button(content, "선택한 장비를 차로", "remove_item", selected_item, state.field.has(selected_item))
 
@@ -741,8 +839,11 @@ func fit() -> void:
 	header.position = Vector2(margin, margin)
 	header.size = Vector2(size.x - margin * 2, 0)
 	if scenery_hint != null:
-		scenery_hint.position=Vector2(margin,size.y-48)
-		scenery_hint.size=Vector2(size.x-margin*2,40)
+		scenery_hint.position=Vector2(margin,size.y-146)
+		scenery_hint.size=Vector2(size.x-margin*2,64)
+	if scenery_exit != null:
+		scenery_exit.position=Vector2(size.x-132-margin,size.y-60-margin)
+		scenery_exit.size=Vector2(132,52)
 	var width := minf(700, size.x - margin * 2)
 	dock.custom_minimum_size.x = width
 	var available := maxf(160, size.y - header.position.y - header.size.y - margin * 2 - 16)

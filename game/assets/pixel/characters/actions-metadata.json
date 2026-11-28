@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "tool": "built-in image_gen",
+  "canvas_size_px": [
+    1536,
+    1024
+  ],
+  "grid": [
+    4,
+    2
+  ],
+  "cell_size_px": [
+    384,
+    512
+  ],
+  "feet_anchor_px": [
+    192,
+    480
+  ],
+  "seated_hip_anchor_px": [
+    192,
+    345
+  ],
+  "animations": {
+    "sit": {
+      "row": 0,
+      "columns_by_angle": {
+        "0": 0,
+        "90": 1,
+        "180": 2,
+        "270": 3
+      }
+    },
+    "install": {
+      "row": 1,
+      "columns": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 5
+    }
+  },
+  "variants": [
+    {
+      "id": "female",
+      "outfit": "basic",
+      "reference": "game/assets/pixel/camper-animations.png",
+      "asset": "game/assets/pixel/characters/female/basic-actions.png",
+      "source_filename": "exec-e79459d5-b30b-4c19-addb-286f2dc36553.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent pixel art character action sprite sheet for Godot. Reference/edit target is the supplied female camper in basic outfit. Create NEW sitting and installing poses of EXACT same character, face, hair, hat if present, clothing, colors, backpack, boots and crisp chunky pixel art style. Remove the mug from hands so both hands are free. Exactly 4 equal columns x 2 equal rows on a 1536x1024 canvas, 384x512 cells, transparent RGBA background, no opaque backdrop, no checkerboard painted in. ALL characters wholly inside cells, centered at cell x192 with generous gutters; feet soles at cell y480. Keep body scale consistent with reference standing figure (head diameter approximately 150px); don't enlarge seated character to fill cell. Top row: four genuinely SEATED poses with bent knees and hips resting at cell y330, feet at y480; invisible seat, no chair drawn, hands relaxed on lap. Columns show seated facing front-right three-quarter, back-right three-quarter, back-left three-quarter, front-left three-quarter. These are directions, not four different characters. Bottom row: four frames of a looping INSTALL animation all facing front-right, leaning forward slightly, alternating both hands extending and returning as if fitting camping equipment at waist height, knees slightly bent, hands visibly move across frames, feet fixed at y480. No chair, furniture, equipment, mug, tool, shadow backdrop, text, labels, borders, watermark. Transparent background is mandatory. Preserve character identity/outfit; only change poses."
+    },
+    {
+      "id": "male",
+      "outfit": "basic",
+      "reference": "game/assets/pixel/camper-male-animations.png",
+      "asset": "game/assets/pixel/characters/male/basic-actions.png",
+      "source_filename": "exec-a2b4fa8c-e1a5-4e08-a1ab-e17cc2794158.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent pixel art character action sprite sheet for Godot. Reference/edit target is the supplied male camper in basic outfit. Create NEW sitting and installing poses of EXACT same character, face, hair, hat if present, clothing, colors, backpack, boots and crisp chunky pixel art style. Remove the mug from hands so both hands are free. Exactly 4 equal columns x 2 equal rows on a 1536x1024 canvas, 384x512 cells, transparent RGBA background, no opaque backdrop, no checkerboard painted in. ALL characters wholly inside cells, centered at cell x192 with generous gutters; feet soles at cell y480. Keep body scale consistent with reference standing figure (head diameter approximately 150px); don't enlarge seated character to fill cell. Top row: four genuinely SEATED poses with bent knees and hips resting at cell y330, feet at y480; invisible seat, no chair drawn, hands relaxed on lap. Columns show seated facing front-right three-quarter, back-right three-quarter, back-left three-quarter, front-left three-quarter. These are directions, not four different characters. Bottom row: four frames of a looping INSTALL animation all facing front-right, leaning forward slightly, alternating both hands extending and returning as if fitting camping equipment at waist height, knees slightly bent, hands visibly move across frames, feet fixed at y480. No chair, furniture, equipment, mug, tool, shadow backdrop, text, labels, borders, watermark. Transparent background is mandatory. Preserve character identity/outfit; only change poses."
+    },
+    {
+      "id": "female",
+      "outfit": "rain",
+      "reference": "game/assets/pixel/camper-female-rain.png",
+      "asset": "game/assets/pixel/characters/female/rain-actions.png",
+      "source_filename": "exec-81e749b6-ff7f-47b6-b729-f627b4b349b4.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent pixel art character action sprite sheet for Godot. Reference/edit target is the supplied female camper in rain outfit. Create NEW sitting and installing poses of EXACT same character, face, hair, hat if present, clothing, colors, backpack, boots and crisp chunky pixel art style. Remove the mug from hands so both hands are free. Exactly 4 equal columns x 2 equal rows on a 1536x1024 canvas, 384x512 cells, transparent RGBA background, no opaque backdrop, no checkerboard painted in. ALL characters wholly inside cells, centered at cell x192 with generous gutters; feet soles at cell y480. Keep body scale consistent with reference standing figure (head diameter approximately 150px); don't enlarge seated character to fill cell. Top row: four genuinely SEATED poses with bent knees and hips resting at cell y330, feet at y480; invisible seat, no chair drawn, hands relaxed on lap. Columns show seated facing front-right three-quarter, back-right three-quarter, back-left three-quarter, front-left three-quarter. These are directions, not four different characters. Bottom row: four frames of a looping INSTALL animation all facing front-right, leaning forward slightly, alternating both hands extending and returning as if fitting camping equipment at waist height, knees slightly bent, hands visibly move across frames, feet fixed at y480. No chair, furniture, equipment, mug, tool, shadow backdrop, text, labels, borders, watermark. Transparent background is mandatory. Preserve character identity/outfit; only change poses."
+    },
+    {
+      "id": "male",
+      "outfit": "rain",
+      "reference": "game/assets/pixel/camper-male-rain.png",
+      "asset": "game/assets/pixel/characters/male/rain-actions.png",
+      "source_filename": "exec-146121cf-1438-4598-ae6d-bcc02ec9ed52.png",
+      "prompt": "Use case: identity-preserve. Asset type: transparent pixel art character action sprite sheet for Godot. Reference/edit target is the supplied male camper in rain outfit. Create NEW sitting and installing poses of EXACT same character, face, hair, hat if present, clothing, colors, backpack, boots and crisp chunky pixel art style. Remove the mug from hands so both hands are free. Exactly 4 equal columns x 2 equal rows on a 1536x1024 canvas, 384x512 cells, transparent RGBA background, no opaque backdrop, no checkerboard painted in. ALL characters wholly inside cells, centered at cell x192 with generous gutters; feet soles at cell y480. Keep body scale consistent with reference standing figure (head diameter approximately 150px); don't enlarge seated character to fill cell. Top row: four genuinely SEATED poses with bent knees and hips resting at cell y330, feet at y480; invisible seat, no chair drawn, hands relaxed on lap. Columns show seated facing front-right three-quarter, back-right three-quarter, back-left three-quarter, front-left three-quarter. These are directions, not four different characters. Bottom row: four frames of a looping INSTALL animation all facing front-right, leaning forward slightly, alternating both hands extending and returning as if fitting camping equipment at waist height, knees slightly bent, hands visibly move across frames, feet fixed at y480. No chair, furniture, equipment, mug, tool, shadow backdrop, text, labels, borders, watermark. Transparent background is mandatory. Preserve character identity/outfit; only change poses."
+    }
+  ],
+  "runtime_link": "character_catalog.gd / camp_actor.gd / camp_editor_3d.gd",
+  "status": "runtime_connected_macOS_GPU_verified",
+  "android_device": "not_tested",
+  "validation": {
+    "character_and_outfit": [
+      "male/basic",
+      "male/rain",
+      "female/basic",
+      "female/rain"
+    ],
+    "seated_angles": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "viewport_sizes": [
+      [
+        390,
+        844
+      ],
+      [
+        820,
+        920
+      ],
+      [
+        1280,
+        900
+      ]
+    ],
+    "installation": "walk_then_hand_animation_then_single_save",
+    "android_device": "not_tested",
+    "physical_gamepad": "not_tested"
+  }
+}

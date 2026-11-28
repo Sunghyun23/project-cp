@@ -41,6 +41,9 @@ func run() -> void:
 			event=InputEventJoypadButton.new();event.pressed=true;event.button_index=JOY_BUTTON_B
 		Input.parse_input_event(event)
 		await process_frame
+		if kind == "touch":
+			assert(ui.viewing_scenery)
+			ui.scenery_exit.pressed.emit()
 		assert(not ui.viewing_scenery and ui.dock.visible)
 		event.pressed=false
 		Input.parse_input_event(event)
