@@ -36,6 +36,7 @@ func run() -> void:
 	await frames()
 	await drag("chair",Vector3(3,0,2),false)
 	assert(ui.preview_dirty and ui.placement_commit.visible and ui.placement_cancel.visible)
+	assert(world.selected_node.get_child(0).modulate.a<.3)
 	assert(ui.placement_done.disabled and game.requests.is_empty())
 	await frames()
 	root.get_texture().get_image().save_png("/tmp/cp-placement-confirm.png")
@@ -50,6 +51,7 @@ func run() -> void:
 	ui.placement_commit.pressed.emit()
 	assert(ui.installing and not ui.drop_pending and game.requests.is_empty())
 	assert(game.actor.mode == "approach_install")
+	assert(not world.selected_node.visible,"Equipment must wait for the actor to put it down")
 	var paused_at: Vector3=game.actor.position
 	game.test_active=false;game._process(1.0)
 	assert(game.actor.position.is_equal_approx(paused_at))
@@ -71,10 +73,13 @@ func run() -> void:
 	assert(game.state.field.is_empty(),"Only the server response commits the field")
 	accept_install()
 	assert(not ui.installing and not ui.preview_dirty and not ui.drop_pending)
+	assert(world.selected_node.visible and world.selected_node.get_child(0).modulate.a==1.0)
 	# Cancellation after confirmation, before saving, retains the previously installed position.
 	await drag("chair",Vector3(4.5,0,3),false)
 	ui.placement_commit.pressed.emit()
 	game.actor.advance(.1)
+	assert(not world.selected_node.visible and is_instance_valid(world.saved_model))
+	assert(world.saved_model.position.is_equal_approx(Vector3(3-world.origin_x,0,2-world.origin_z)))
 	ui.cancel_field()
 	assert(game.actor.mode == "idle" and game.requests.size() == 1)
 	assert(ui.field_position.is_equal_approx(Vector3(3,0,2)))
@@ -125,7 +130,8 @@ func run() -> void:
 	var chair_node
 	for child in world.items_root.get_children():
 		if child.get_child(1).get_meta("item") == "chair": chair_node=child
-	var chair_at: Vector2=world.item_screen_rect(chair_node).get_center()
+	var chair_sprite: Sprite3D=chair_node.get_child(0)
+	var chair_at: Vector2=world.screen_point(chair_sprite.global_position-world.camera.global_basis.y*42*chair_sprite.pixel_size)
 	for down in [true,false]:
 		var click:=InputEventMouseButton.new();click.button_index=MOUSE_BUTTON_LEFT;click.pressed=down;click.position=chair_at
 		Input.parse_input_event(click);await process_frame

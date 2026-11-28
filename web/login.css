@@ -23,3 +23,19 @@ body{font-family:Camping,system-ui,sans-serif;font-size:16px;font-weight:500}h1{
 .film-caption h1{font-size:clamp(30px,5vw,58px);margin:20px 0 10px}
 .film-caption .primary{width:min(260px,100%);margin-top:16px;justify-content:center}
 #skip-tutorial{width:100%;font:inherit;cursor:pointer}
+
+
+/* 세로 화면에서 원화의 오른쪽 텐트·테이블·모닥불을 함께 보여준다. */
+@media (max-width: 600px) and (orientation: portrait) {
+  .intro-mode #intro-field {
+    background-color: #213731;
+    background-position: right 56%;
+    background-size: auto 55%;
+    background-repeat: no-repeat;
+  }
+  .intro-night #intro-field { background-color: #14253b; }
+  .intro-heading { top: 4vh; }
+  .intro-heading h1 { font-size: clamp(32px, 9vw, 48px); margin: 10px 0; }
+  .intro-actions { bottom: max(12px, env(safe-area-inset-bottom)); }
+  #intro-camper { width: 90px; height: 120px; }
+}

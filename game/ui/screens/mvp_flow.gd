@@ -27,7 +27,7 @@ var selected_item := ""
 var item_rotated := false
 var packing_rotation := 0
 var field_rotation := 0
-var placement_controls: VBoxContainer
+var placement_controls: HBoxContainer
 var field_rotate: Button
 var effects_button: Button
 var night_button: Button
@@ -191,7 +191,8 @@ func _ready() -> void:
 	placement_cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	placement_cancel.pressed.connect(cancel_field)
 	placement_actions.add_child(placement_cancel)
-	placement_controls = VBoxContainer.new()
+	placement_controls = HBoxContainer.new()
+
 	placement_controls.add_theme_constant_override("separation",8)
 	add_child(placement_controls)
 	field_rotate = Action.instantiate()
@@ -565,6 +566,7 @@ func _input(event: InputEvent) -> void:
 
 func update_placement_caption() -> void:
 	if phase() != "setup" or field_editor == null: return
+	field_editor.set_installation_preview(preview_dirty or installing or field_editor.dragging_item, installing)
 	placement_done.disabled = locked or preview_dirty or installing or drop_pending or field_editor.dragging_item
 	field_rotate.disabled = locked or installing or drop_pending or field_editor.dragging_item or selected_item.is_empty()
 	placement_commit.visible = preview_dirty
@@ -573,15 +575,16 @@ func update_placement_caption() -> void:
 	placement_cancel.disabled = drop_pending or check_required
 	var reason: String = placement_error if not placement_error.is_empty() else field_editor.placement_reason
 	var hint := "저장 중…" if drop_pending else "캐릭터가 이동해 설치 중이에요" if installing else "확정하면 캐릭터가 와서 설치해요 · 취소 가능" if preview_dirty else "끌어서 위치를 정해 주세요" if reason.is_empty() else reason
-	placement_message.text = "%s · %d°\nX %.2f · Y %.2f · Z %.2f\n%s" % [item_name(selected_item),field_rotation,field_position.x,field_position.z,field_position.y,hint]
+	var position_type := "테이블 위 가능" if field_editor.support_info(selected_item).get("can_place_on_table", false) else "바닥 전용"
+	placement_message.text = "%s · %s\n%s" % [item_name(selected_item),position_type,hint]
+
 	fit.call_deferred()
 
 func update_placement_action_position() -> void:
 	if field_editor == null or placement_done == null or not placement_done.visible: return
 	placement_controls.size = placement_controls.get_combined_minimum_size()
-	var at: Vector2 = field_editor.screen_point(Vector3(field_position.x-field_editor.origin_x,field_position.y+1.95,field_position.z-field_editor.origin_z))
-	var target: Vector2 = at-Vector2(placement_controls.size.x/2,placement_controls.size.y+12)
-	placement_controls.position=Vector2(clampf(target.x,12,maxf(12,size.x-placement_controls.size.x-12)),clampf(target.y,12,maxf(12,size.y-placement_controls.size.y-12)))
+	var height := maxf(12, placement_bar.position.y - placement_controls.size.y - 12)
+	placement_controls.position = Vector2((size.x-placement_controls.size.x)/2,height)
 
 func rotate_field() -> void:
 	if phase() != "setup" or locked or drop_pending or field_editor == null or field_editor.dragging_item or selected_item.is_empty(): return

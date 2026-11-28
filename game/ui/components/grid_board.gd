@@ -156,7 +156,8 @@ func _draw() -> void:
 		for offset in footprint:
 			largest = largest.max(offset)
 			var box := Rect2(Vector2(origin + offset) * cell_size + Vector2(2, 2), Vector2.ONE * (cell_size - 4))
-			draw_rect(box, Color("789367"))
+			draw_rect(box, Assets.cargo_color(id))
+			draw_rect(box, Assets.cargo_color(id).darkened(.48), false, 3)
 		var item_rect := Rect2(Vector2(origin) * cell_size + Vector2(5, 5), Vector2(largest + Vector2i.ONE) * cell_size - Vector2(10, 10))
 		var texture := Assets.item_texture(id)
 		if texture:

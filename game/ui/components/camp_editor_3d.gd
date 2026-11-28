@@ -16,6 +16,10 @@ var hit_images := {}
 var fallback_catalog: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/campsites.json"))
 var interaction_locked := false
 var pending_item := ""
+var preview_only := false
+var installation_active := false
+var saved_model: Node3D
+var saved_model_key := ""
 var dragging_item := false
 var active_pointer := -2
 var press_point := Vector2.ZERO
@@ -64,7 +68,7 @@ var fire_shapes: Array[MeshInstance3D] = []
 var rain_shapes: Array[MeshInstance3D] = []
 
 static func dimensions(id: String) -> Vector3:
-	return {"tent":Vector3(2.1,1.8,1.4), "table":Vector3(2.1,.9,1.4), "chair":Vector3(1,1.2,1), "stove":Vector3(1.4,.65,.7), "lantern":Vector3(.5,1,.7), "rug":Vector3(1.4,.06,2.1)}.get(id, Vector3.ONE)
+	return {"tent":Vector3(2.0,1.8,2.0), "table":Vector3(2.1,.9,1.4), "chair":Vector3(1,1.2,1), "stove":Vector3(1.4,.65,.7), "lantern":Vector3(.5,1,.7), "rug":Vector3(1.4,.06,2.1)}.get(id, Vector3.ONE)
 
 static func rotation_of(value: Dictionary) -> int:
 	return int(value.get("rotation_degrees",90 if value.get("rotated",false) else 0))
@@ -180,33 +184,6 @@ func _ready() -> void:
 	world.add_child(items_root)
 	gizmo = Node3D.new()
 	world.add_child(gizmo)
-	for axis in ["x","y","z"]:
-		var direction: Vector3 = {"x":Vector3.RIGHT,"y":Vector3.UP,"z":Vector3.BACK}[axis]
-		var color: String = {"x":"d9745f","y":"74a9d4","z":"9cc96d"}[axis]
-		var stem := cylinder(gizmo,.025,1.4,direction*.7,color)
-		if axis == "x": stem.rotation.z = -PI/2
-		if axis == "z": stem.rotation.x = PI/2
-		var tip := cylinder(gizmo,.11,.18,direction*1.48,color)
-		if axis == "x": tip.rotation.z = -PI/2
-		if axis == "z": tip.rotation.x = PI/2
-		var handle := StaticBody3D.new()
-		handle.collision_layer = 2
-		handle.position = direction*1.4
-		handle.set_meta("axis",axis)
-		var hit := CollisionShape3D.new()
-		var sphere := SphereShape3D.new()
-		sphere.radius = .28
-		hit.shape = sphere
-		handle.add_child(hit)
-		gizmo.add_child(handle)
-		var caption := Label3D.new()
-		caption.text = {"x":"X","y":"Z","z":"Y"}[axis]
-		caption.position = direction*1.7
-		caption.font_size = 48
-		caption.pixel_size = .006
-		caption.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		caption.modulate = Color(color)
-		gizmo.add_child(caption)
 	gizmo.visible = false
 	support_surfaces = Node3D.new()
 	world.add_child(support_surfaces)
@@ -247,8 +224,8 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 	origin_x = (float(placement.max[0])+float(placement.min[0]))/2
 	origin_z = (float(placement.max[2])+float(placement.min[2]))/2
 	var view: Dictionary = site.view
-	yaw = deg_to_rad(float(view.yaw_degrees))
-	var elevation := deg_to_rad(float(view.elevation_degrees))
+	yaw = deg_to_rad(45.0)
+	var elevation := deg_to_rad(30.0)
 	camera.position = Vector3(sin(yaw)*cos(elevation),sin(elevation),cos(yaw)*cos(elevation))*16
 	camera.look_at(Vector3.ZERO)
 	var projected_width := absf(cos(yaw))*site_width + absf(sin(yaw))*site_depth
@@ -266,7 +243,8 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 		for child in grid_root.get_children():
 			grid_root.remove_child(child)
 			child.queue_free()
-		var allowed_material := overlay_material("b5df88", .16)
+		var allowed_material := overlay_material("f1e9cf", .26)
+		var grid_ink := overlay_material("fdf4d8", .44)
 		# 장애물 경계로 나눈 사각형 중 실제 배치 가능한 바닥만 칠한다.
 		var xs: Array = [float(placement.min[0]),float(placement.max[0])]
 		var zs: Array = [float(placement.min[2]),float(placement.max[2])]
@@ -283,6 +261,15 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 				if allowed and xs[xi+1]>xs[xi] and zs[zi+1]>zs[zi]:
 					var patch := box(grid_root,Vector3(xs[xi+1]-xs[xi],.006,zs[zi+1]-zs[zi]),Vector3(center.x-origin_x,.008,center.z-origin_z),"b5df88")
 					patch.material_override=allowed_material
+					patch.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					for x in range(ceili(xs[xi]), ceili(xs[xi+1])):
+						var segment := box(grid_root,Vector3(.018,.006,zs[zi+1]-zs[zi]),Vector3(x-origin_x,.023,center.z-origin_z),"fdf4d8")
+						segment.material_override=grid_ink
+						segment.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					for z in range(ceili(zs[zi]), ceili(zs[zi+1])):
+						var segment := box(grid_root,Vector3(xs[xi+1]-xs[xi],.006,.018),Vector3(center.x-origin_x,.023,z-origin_z),"fdf4d8")
+						segment.material_override=grid_ink
+						segment.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var edge_material := overlay_material("edf2c5", .9)
 		dashed_boundary(grid_root,Vector3(float(placement.min[0])-origin_x,.025,float(placement.min[2])-origin_z),Vector2(site_width,site_depth),edge_material)
 		for blocked in placement.blocked:
@@ -318,7 +305,7 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 				index += 1
 	if selected_node != null:
 		selected_node.position = Vector3(proposed.x-origin_x,proposed.y,proposed.z-origin_z)
-	gizmo.visible = not readonly and not selected.is_empty()
+	gizmo.visible = false
 	update_support_surfaces()
 	update_feedback()
 	gizmo.position = Vector3(proposed.x-origin_x,proposed.y+.1,proposed.z-origin_z)
@@ -328,6 +315,37 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 		var item_id: String=item.get_child(1).get_meta("item")
 		if field.has(item_id): sources[item_id]=item.position
 	effects.update_sources(sources)
+	set_installation_preview(preview_only,installation_active)
+
+func set_installation_preview(preview: bool, installing: bool) -> void:
+	preview_only=preview and not readonly and not selected.is_empty()
+	installation_active=installing and preview_only
+	var key := JSON.stringify([selected,field.get(selected,{})]) if preview_only and field.has(selected) else ""
+	if saved_model_key != key:
+		if is_instance_valid(saved_model):
+			saved_model.get_parent().remove_child(saved_model)
+			saved_model.queue_free()
+		saved_model=null
+		saved_model_key=key
+		if not key.is_empty():
+			var p: Dictionary=field[selected]
+			saved_model=model(selected,rotation_of(p))
+			saved_model.position=Vector3(float(p.x)-origin_x,float(p.y),float(p.z)-origin_z)
+			saved_model.get_child(1).collision_layer=0
+			world.add_child(saved_model)
+	if is_instance_valid(selected_node):
+		selected_node.visible=not installation_active
+		var sprite: Sprite3D=selected_node.get_child(0)
+		sprite.modulate.a=.25 if preview_only else 1.0 if field.has(selected) else .65
+		sprite.alpha_cut=SpriteBase3D.ALPHA_CUT_DISABLED if preview_only or not field.has(selected) else SpriteBase3D.ALPHA_CUT_DISCARD
+		sprite.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if preview_only else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	if preview_only:
+		# A ghost never becomes an installed light source before the actor puts it down.
+		var actual_sources: Dictionary={}
+		for id in field:
+			var p: Dictionary=field[id]
+			actual_sources[id]=Vector3(float(p.x)-origin_x,float(p.y),float(p.z)-origin_z)
+		effects.update_sources(actual_sources)
 
 func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, facing_left: bool, pose: String = "", seat_height: float = 0.0) -> void:
 	var at=ground_point(screen_foot,0)
@@ -387,7 +405,7 @@ func dashed_boundary(parent: Node3D, at: Vector3, extent: Vector2, ink: Standard
 
 func support_info(id: String) -> Dictionary:
 	for item in state.get("item_catalog",[]):
-		if item.id == id and item.has("stackable"): return item
+		if item.id == id and item.has("can_place_on_table"): return item
 	return support_config_data.get(id,{"stackable":false})
 
 func support_height(id: String) -> float:
@@ -397,8 +415,8 @@ func update_support_surfaces() -> void:
 	for child in support_surfaces.get_children():
 		support_surfaces.remove_child(child)
 		child.queue_free()
-	support_surfaces.visible = not readonly and dragging_item
-	if readonly or not dragging_item: return
+	support_surfaces.visible = not readonly and dragging_item and support_info(selected).get("can_place_on_table", false)
+	if not support_surfaces.visible: return
 	for id in field:
 		if id == selected or not support_info(id).get("stackable",false): continue
 		var bounds := oriented_dimensions(id,rotation_of(field[id]))
@@ -460,6 +478,7 @@ func validation_reason(id: String, point: Vector3) -> String:
 		if point.x+bounds.x/2 > blocked.min[0] and point.x-bounds.x/2 < blocked.max[0] and point.z+bounds.z/2 > blocked.min[2] and point.z-bounds.z/2 < blocked.max[2]:
 			return str(blocked.name)+"에는 놓을 수 없어요"
 	if point.y > .02:
+		if not support_info(id).get("can_place_on_table", false): return "이 장비는 바닥에만 놓을 수 있어요"
 		var supported := false
 		for support in field:
 			if support == id or not support_info(support).get("stackable",false): continue
@@ -471,7 +490,7 @@ func validation_reason(id: String, point: Vector3) -> String:
 		for other in field:
 			if other != id and float(field[other].y) > .02: return "받침 위 물건을 먼저 내려 주세요"
 	for other in field:
-		if other == id or id == "rug" or other == "rug": continue
+		if other == id: continue
 		var p: Dictionary = field[other]
 		var q := oriented_dimensions(other,rotation_of(p))
 		if absf(point.x-float(p.x)) < (bounds.x+q.x)/2-.02 and absf(point.z-float(p.z)) < (bounds.z+q.z)/2-.02 and point.y < float(p.y)+q.y-.02 and point.y+bounds.y > float(p.y)+.02:
@@ -488,6 +507,9 @@ func update_feedback() -> void:
 		child.queue_free()
 	if selected.is_empty(): return
 	var bounds := oriented_dimensions(selected,proposed_rotation)
+	var fill := box(footprint,Vector3(bounds.x,.008,bounds.z),Vector3(0,.022,0),"86d7a0")
+	fill.material_override=overlay_material("86d7a0" if placement_reason.is_empty() else "ef806e", .32)
+	fill.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for z in [-bounds.z/2,bounds.z/2]:
 		var line := box(footprint,Vector3(bounds.x,.018,.035),Vector3(0,.025,z),"86d7a0")
 		line.material_override = footprint_material
@@ -525,7 +547,7 @@ func move_drag(point: Vector2) -> void:
 	value.x = snappedf(value.x,float(placement.step))
 	value.z = snappedf(value.z,float(placement.step))
 	for support in field:
-		if support == selected or not support_info(support).get("stackable",false): continue
+		if not support_info(selected).get("can_place_on_table", false) or support == selected or not support_info(support).get("stackable",false): continue
 		var surface: Dictionary=field[support]
 		var top_bounds:=oriented_dimensions(support,rotation_of(surface))
 		if bounds.x > top_bounds.x or bounds.z > top_bounds.z: continue

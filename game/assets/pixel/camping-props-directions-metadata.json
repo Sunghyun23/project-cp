@@ -17,7 +17,7 @@
   "items": {
     "tent": {
       "row": 0,
-      "sprite_world_width": 2.6,
+      "sprite_world_width": 3.5,
       "frames": [
         {
           "angle": 0,
@@ -135,25 +135,26 @@
         "seat_height_game_z": 0.5,
         "seat_anchor_px_by_angle": {
           "0": [
-            154,
-            148
+            128,
+            170
           ],
           "90": [
-            100,
-            145
+            128,
+            170
           ],
           "180": [
-            150,
-            145
+            128,
+            170
           ],
           "270": [
-            102,
-            148
+            128,
+            170
           ]
         },
         "approach_distance": 0.95,
         "standing_on_move": true,
-        "stackable_unchanged": false
+        "stackable_unchanged": false,
+        "seat_texture": "game/assets/pixel/field-furniture.png"
       }
     },
     "table": {
