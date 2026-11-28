@@ -40,7 +40,7 @@ class MvpApiTest {
         void expire()throws Exception{for(int i=0;i<23;i++)act("tick","",Map.of("elapsed_ms",2000));}
         void prepare(boolean food)throws Exception {
             act("select_character","male");for(int i=0;i<5;i++)act("work");assertEquals("place",s().get("phase"));
-            act("choose_place","lake");act("buy_item","chair");act("shop_done");
+            act("choose_place","lake");act("shop_done");
             if(food)act("buy_meal");act("set_clothes","rain");act("prepare_done");act("start_pack");
         }
     }
@@ -114,18 +114,27 @@ class MvpApiTest {
         assertTrue(((Map<?,?>)saved.get("field")).containsKey("lantern"));
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(source,"place_item","lantern",Map.of("x",10.1,"y",0.0,"z",2.0)));
     }
-    @Test void earlyDepartureAndReturnUseSamePackingResultsAndRequireLossConfirmation()throws Exception {
+    @Test void earlyDepartureAndReturnUseSamePackingResultsAndRequireParcelConfirmation()throws Exception {
         var p=new Player();p.prepare(false);p.place("tent",0,0,false);
         p.act("finish_pack");assertEquals("setup",p.s().get("phase"));
         assertTrue(((Number)p.s().get("pack_remaining_ms")).intValue()>0);
-        assertEquals(List.of("stove","chair"),p.s().get("packing_result"));
+        assertEquals(List.of("stove","chair","rainwear"),p.s().get("packing_result"));
         p.act("setup_done");p.act("sleep");p.act("leave_camp");p.act("teardown_done");p.act("start_pack");
         var before=p.saved;
         assertEquals(400,call("POST","actions/",p.token,Map.of("command","finish_pack","version",p.saved.get("version"))).status());
         assertEquals(before,call("GET","state/",p.token,null).data());
-        p.act("finish_pack","",Map.of("confirm_loss",true));
-        assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("tent"),p.s().get("lost"));
+        p.act("finish_pack","",Map.of("confirm_mail",true));
+        assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("tent"),p.s().get("parcel_box"));
         assertEquals(List.of("stove","chair"),p.s().get("owned"));
+        int beforePickup=((Number)p.s().get("money")).intValue();
+        p.act("next_week");
+        for(int i=0;i<5;i++)p.act("work");
+        assertEquals(List.of("tent"),p.s().get("parcel_box"));
+        p.act("claim_parcel","tent");
+        assertEquals(beforePickup+45,p.s().get("money"));
+        assertTrue(((List<?>)p.s().get("owned")).contains("tent"));
+        assertEquals(List.of(),p.s().get("parcel_box"));
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","claim_parcel","choice","tent","version",p.saved.get("version"))).status());
     }
     @Test void interlockingFootprintsLeaveRealHolesAndRotateInFourDirections()throws Exception {
         var p=new Player();p.prepare(true);p.place("tent",0,0,false);
@@ -185,7 +194,7 @@ class MvpApiTest {
         var straight=MvpRules.transition(s,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",0));
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(straight,"place_item","stove",Map.of("x",5,"y",.9,"z",3.6,"rotation_degrees",0)));
     }
-    @Test void completeTripConsumesFoodLosesOnlyUnpackedReturnGearAndPersists()throws Exception {
+    @Test void completeTripConsumesFoodMailsOnlyUnpackedReturnGearAndPersists()throws Exception {
         var p=new Player();p.prepare(true);p.place("tent",0,0,false);p.place("stove",3,0,false);p.place("chair",3,1,false);p.place("meal",5,4,false);
         p.expire();assertEquals("setup",p.s().get("phase"));
         p.world("tent",1.5,0,1.0);p.world("stove",4,0,1.0);p.world("chair",4,0,3.0);p.act("setup_done");
@@ -194,8 +203,8 @@ class MvpApiTest {
         p.act("rest");p.act("sleep");assertEquals(1,p.s().get("camp_day"));p.act("leave_camp");
         for(String id:List.of("chair","stove","tent"))p.act("take_down",id);
         p.act("teardown_done");p.act("start_pack");p.place("tent",0,0,false);p.place("stove",3,0,false);p.expire();
-        assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("chair"),p.s().get("lost"));
-        assertEquals(List.of("tent","stove"),p.s().get("owned"));assertEquals(75,p.s().get("money"));
+        assertEquals("settlement",p.s().get("phase"));assertEquals(List.of("chair"),p.s().get("parcel_box"));
+        assertEquals(List.of("tent","stove"),p.s().get("owned"));assertEquals(110,p.s().get("money"));
         p.act("next_week");assertEquals(2,p.s().get("week"));assertEquals("male",p.s().get("character_id"));
         assertEquals(p.saved,call("GET","state/",p.token,null).data());
     }
@@ -209,10 +218,25 @@ class MvpApiTest {
         p.place("stove",3,0,true);assertTrue(((Map<?,?>)p.s().get("cargo")).containsKey("stove"));
         assertEquals(400,call("POST","actions/",p.token,Map.of("command","place_item","choice","lantern","version",p.saved.get("version"),"x",4,"y",3)).status());
     }
-    @Test void returnLossNeverRemovesItemsLeftAtHome()throws Exception {
+    @Test void returnParcelsNeverRemoveItemsLeftAtHome()throws Exception {
         var p=new Player();p.prepare(false);p.place("tent",0,0,false);p.place("stove",3,0,false);p.expire();
         p.act("setup_done");p.act("sleep");p.act("leave_camp");p.act("teardown_done");p.act("start_pack");p.expire();
-        assertEquals(List.of("chair"),p.s().get("owned"));assertEquals(List.of("tent","stove"),p.s().get("lost"));
+        assertEquals(List.of("chair"),p.s().get("owned"));assertEquals(List.of("tent","stove"),p.s().get("parcel_box"));
+    }
+    @Test void starterGearIsFreeAndPackedRainwearFollowsDailyWeather()throws Exception {
+        var p=new Player();p.prepare(true);
+        assertEquals(List.of("tent","stove","chair"),p.s().get("starter_pack"));
+        assertEquals(110,p.s().get("money"));
+        p.act("finish_pack");
+        assertEquals("basic",p.s().get("outfit"));
+        p.act("setup_done");
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","set_clothes","choice","rain","version",p.saved.get("version"))).status());
+
+        var packed=new Player();packed.prepare(false);packed.place("rainwear",5,0,false);
+        packed.act("finish_pack");assertEquals("rain",packed.s().get("outfit"));
+        packed.act("setup_done");packed.act("set_clothes","auto");
+        assertEquals("rain",packed.s().get("outfit"));
+        packed.act("sleep");assertEquals("basic",packed.s().get("outfit"));
     }
     @Test void forecastClothingPenaltyAndDailyWeatherAreConnected()throws Exception {
         var basic=new Player();basic.prepare(false);basic.expire();
@@ -248,8 +272,8 @@ class MvpApiTest {
 
     @Test void duplicatePurchaseAndUnaffordablePlaceDoNotSpendMoney()throws Exception {
         var p=new Player();p.act("select_character","female");for(int i=0;i<5;i++)p.act("work");p.act("choose_place","pine");
-        p.act("buy_item","chair");var before=p.saved;
-        assertEquals(400,call("POST","actions/",p.token,Map.of("command","buy_item","choice","chair","version",p.saved.get("version"))).status());
+        p.act("buy_item","table");var before=p.saved;
+        assertEquals(400,call("POST","actions/",p.token,Map.of("command","buy_item","choice","table","version",p.saved.get("version"))).status());
         assertEquals(before,call("GET","state/",p.token,null).data());
     }
 }

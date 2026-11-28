@@ -43,6 +43,8 @@ final class CampsiteCatalog {
         var result=new LinkedHashMap<>(state);
         result.put("campsite_catalog",DATA);
         result.put("item_catalog",MvpRules.catalog());
+        result.put("parcel_box",MvpRules.parcels(state));
+        result.put("parcel_fee",MvpRules.PARCEL_FEE);
         result.put("field_coordinate_system","godot_y_up");
         String id=(String)state.getOrDefault("place","");
         if (!id.isEmpty()) result.put("placement_site",site(id));

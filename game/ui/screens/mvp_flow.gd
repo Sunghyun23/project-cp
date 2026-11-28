@@ -316,7 +316,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	elif camp:
 		var minute := int(state.get("camp_minute", 960))
 		info.text += " · %02d:%02d" % [(minute / 60) % 24, minute % 60]
-	var structural := [phase(), state.get("owned"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() in ["setup","packing","return_pack"] else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("lost"), show_forecast, check_required]
+	var structural := [phase(), state.get("owned"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() in ["setup","packing","return_pack"] else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("outfit_auto"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("parcel_box"), show_forecast, check_required]
 	var next_signature := JSON.stringify(structural)
 	if signature != next_signature:
 		signature = next_signature
@@ -381,7 +381,8 @@ func render_body() -> void:
 		return
 	match phase():
 		"place":
-			content.add_child(label("풍경과 자리 크기를 비교해 골라요. 이용료는 이번 방문에만 내요."))
+			content.add_child(label("원하는 장소를 고르고 이번 방문의 이용료를 내요. 바로 떠날 수 있어요."))
+			if not state.get("parcel_box", []).is_empty(): show_parcels()
 			for id in ["lake", "pine"]:
 				var picture := TextureRect.new()
 				picture.texture = Assets.LAKE if id == "lake" else Assets.PINE
@@ -392,17 +393,22 @@ func render_body() -> void:
 				var cost := 15 if id == "lake" else 30
 				button(content, ("호숫가 · 8×6 자리" if id == "lake" else "소나무 숲 · 10×7 자리") + "\n%d원 · 선택 후 %d원" % [cost, int(state.money) - cost], "choose_place", id, int(state.money) >= cost)
 		"equipment":
-			content.add_child(label("기본 텐트와 버너는 준비되어 있어요. 마음에 드는 장비를 더해요."))
+			var starter: Array = state.get("starter_pack", [])
+			if not starter.is_empty() and int(state.get("week", 1)) == 1:
+				content.add_child(label("무료 초보 꾸러미 · " + names(starter)))
+			content.add_child(label("장비를 새로 사지 않아도 준비를 계속할 수 있어요."))
+			if not state.get("parcel_box", []).is_empty(): show_parcels()
 			var items := GridContainer.new()
 			items.columns = 2
 			items.add_theme_constant_override("h_separation", 8)
 			items.add_theme_constant_override("v_separation", 8)
 			content.add_child(items)
 			for item in state.item_catalog:
-				if item.id == "meal":
+				if item.id in ["meal", "rainwear"]:
 					continue
 				var owned: bool = item.id in state.owned
-				var purchase := button(items, item.name + ("\n✓ 보유 중" if owned else "\n%d원" % item.price), "buy_item", item.id, not owned and int(state.money) >= int(item.price))
+				var waiting: bool = item.id in state.get("parcel_box", [])
+				var purchase := button(items, item.name + ("\n✓ 보유 중" if owned else "\n택배함" if waiting else "\n%d원" % item.price), "buy_item", item.id, not owned and not waiting and int(state.money) >= int(item.price))
 				purchase.icon = Assets.item_texture(item.id)
 				purchase.expand_icon = true
 				purchase.add_theme_constant_override("icon_max_width", 44)
@@ -413,7 +419,8 @@ func render_body() -> void:
 			for index in [5, 6]:
 				var forecast: Dictionary = state.weather[index]
 				content.add_child(label("%d일 · %s · %s" % [int(forecast.date), "토요일" if index == 5 else "일요일", Assets.weather_name(forecast.weather)]))
-			content.add_child(label("이번 여행에 입을 옷을 골라요. 맞지 않으면 체력이 더 빨리 줄어요."))
+			content.add_child(label("캠핑복을 입고 출발해요. 방수 겉옷은 짐 싸기에서 1칸에 실어요. 자동 착용을 켜면 비 오는 날에 실어 온 겉옷을 입어요."))
+			button(content, ("✓ " if state.get("outfit_auto", false) else "") + "날씨에 맞춰 자동 착용", "set_clothes", "auto")
 			var wardrobe := HBoxContainer.new()
 			content.add_child(wardrobe)
 			for outfit in ["basic", "rain"]:
@@ -426,8 +433,11 @@ func render_body() -> void:
 				portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				portrait.custom_minimum_size.y = 120
 				column.add_child(portrait)
-				button(column, ("✓ " if state.outfit == outfit else "") + ("캠핑복" if outfit == "basic" else "방수 겉옷"), "set_clothes", outfit)
-			button(content, "✓ 라면 준비 완료" if state.meal_owned else "라면 한 끼 준비 · 20원", "buy_meal", "", not state.meal_owned and int(state.money) >= 20)
+				button(column, ("✓ " if not state.get("outfit_auto", false) and state.outfit == outfit else "") + ("캠핑복" if outfit == "basic" else "방수 겉옷"), "set_clothes", outfit)
+			var meal_price := 5
+			for item in state.item_catalog:
+				if item.id == "meal": meal_price = int(item.price)
+			button(content, "✓ 라면 준비 완료" if state.meal_owned else "라면 한 끼 준비 · %d원" % meal_price, "buy_meal", "", not state.meal_owned and int(state.money) >= meal_price)
 			if not state.meal_owned:
 				note("음식 없이도 출발할 수 있어요. 캠핑 중 먹을 음식이 없다는 점을 기억해요.", 1)
 			button(content, "짐 싸러 가기  →", "prepare_done", "", true, true)
@@ -457,6 +467,12 @@ func render_body() -> void:
 				button(activities, "잠들기  →", "sleep", "", true, true)
 			else:
 				button(activities, "귀가 준비  →", "leave_camp", "", true, true)
+			var clothes := HBoxContainer.new()
+			content.add_child(clothes)
+			for option in [["auto", "자동"], ["basic", "캠핑복"], ["rain", "방수 겉옷"]]:
+				var wearing: bool = state.get("outfit_auto", false) if option[0] == "auto" else not state.get("outfit_auto", false) and state.outfit == option[0]
+				var carried: bool = not state.get("weather_cargo", false) or state.cargo.has("rainwear")
+				button(clothes, ("✓ " if wearing else "") + option[1], "set_clothes", option[0], not wearing and (option[0] != "rain" or carried))
 		"cooking":
 			content.add_child(label("버너 앞에서 라면을 끓여요.\n%d / 3 단계" % int(state.cooking)))
 			var illustration := TextureRect.new()
@@ -481,14 +497,24 @@ func render_body() -> void:
 			content.add_child(label("이번 주 수입  +%d원\n준비에 쓴 돈  %d원\n현재 소지금  %d원" % [int(state.week_income), int(state.week_spent), int(state.money)]))
 			content.add_child(label("집에 보관할 장비\n" + names(state.owned)))
 			content.add_child(label("남은 라면: 1끼" if state.meal_owned else "남은 음식 없음"))
-			if not state.lost.is_empty():
-				note("싣지 못해 잃어버린 물건: " + names(state.lost) + "\n다시 회수할 수 없어요.", 2)
-			else:
-				note("가져간 물건을 모두 챙겨 돌아왔어요.")
+			show_parcels()
 			button(content, "저장하고 다음 주 시작  →", "next_week", "", true, true)
 	if restore_grid_focus and board != null:
 		restore_board_focus.call_deferred()
 	fit.call_deferred()
+
+func show_parcels() -> void:
+	var parcels: Array = state.get("parcel_box", [])
+	var fee := int(state.get("parcel_fee", 5))
+	content.add_child(label("집 택배함"))
+	if parcels.is_empty():
+		content.add_child(label("받을 장비가 없어요."))
+		return
+	content.add_child(label("착불 장비 %d개 · 개당 %d원" % [parcels.size(), fee]))
+	for id in parcels:
+		button(content, "%s 받기 · %d원" % [item_name(id), fee], "claim_parcel", id, int(state.money) >= fee)
+	if int(state.money) < fee:
+		content.add_child(label("소지금이 부족해요. 장비는 택배함에 보관돼요."))
 
 func restore_board_focus() -> void:
 	if is_instance_valid(board) and board.is_inside_tree(): board.grab_focus()
@@ -675,6 +701,7 @@ func build_field_position() -> void:
 func build_field_3d() -> void:
 	selected_ids = state.cargo.keys()
 	selected_ids.erase("meal")
+	selected_ids.erase("rainwear")
 	if not selected_item in selected_ids:
 		selected_item = selected_ids[0] if not selected_ids.is_empty() else ""
 	if field_initialized_for != selected_item:
@@ -697,14 +724,17 @@ func build_grid() -> void:
 	var field := phase() == "setup"
 	var returning := phase() == "return_pack"
 	selected_ids = state.cargo.keys() if field else state.get("return_candidates", []) if returning else state.owned.duplicate()
-	if not field and not returning and state.meal_owned:
-		selected_ids.append("meal")
+	if not field and not returning:
+		if state.meal_owned: selected_ids.append("meal")
+		if state.get("weather_cargo", false) and not "rainwear" in state.get("parcel_box", []):
+			selected_ids.append("rainwear")
 	if field:
 		selected_ids.erase("meal")
+		selected_ids.erase("rainwear")
 	if not selected_item in selected_ids:
 		selected_item = selected_ids[0] if not selected_ids.is_empty() else ""
 	if returning:
-		content.add_child(label("미적재품은 잃어버려요."))
+		content.add_child(label("못 실은 장비는 집 택배함으로 보내요. 받을 때 개당 %d원이에요." % int(state.get("parcel_fee", 5))))
 	elif field:
 		content.add_child(label("원하는 장비만 놓아요. 물건을 고르고 격자의 시작 칸을 눌러요."))
 		if not state.get("packing_result", []).is_empty():
@@ -784,11 +814,14 @@ func build_grid() -> void:
 	elif state.get("pack_started",false):
 		var missed:=selected_ids.filter(func(id): return not state.cargo.has(id))
 		if returning and packing_confirm and not missed.is_empty():
-			packing_footer.add_child(label("잃어버릴 물건: "+names(missed)))
+			var mailed := missed.filter(func(id): return id != "meal")
+			if not mailed.is_empty():
+				packing_footer.add_child(label("착불 택배 · %s · 총 %d원" % [names(mailed), mailed.size() * int(state.get("parcel_fee", 5))]))
+			if missed.has("meal"): packing_footer.add_child(label("남은 식재료는 현장에 두고 가요."))
 			var cancel:=button(packing_footer,"계속 짐싸기","")
 			cancel.pressed.connect(func(): packing_confirm=false; render_body())
-			var confirm:=button(packing_footer,"남겨두고 귀가하기", "", "", true, true)
-			confirm.pressed.connect(func(): act("finish_pack","",{"confirm_loss":true}))
+			var confirm:=button(packing_footer,"확인하고 귀가하기", "", "", true, true)
+			confirm.pressed.connect(func(): act("finish_pack","",{"confirm_mail":true}))
 		else:
 			var finish:=button(packing_footer,"귀가하기  →" if returning else "출발하기  →", "", "", true, true)
 			finish.pressed.connect(func():
