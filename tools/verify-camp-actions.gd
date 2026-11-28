@@ -75,6 +75,7 @@ func run() -> void:
 	ui.placement_commit.pressed.emit()
 	assert(ui.installing and not ui.drop_pending and game.requests.is_empty())
 	assert(game.actor.mode == "approach_install")
+	assert(game.actor.position.is_equal_approx(Vector3(.5,0,world.site_depth+.55)),"Installation must start at the visibly waiting character")
 	assert(not world.selected_node.visible,"Equipment must wait for the actor to put it down")
 	var paused_at: Vector3=game.actor.position
 	game.test_active=false;game._process(1.0)

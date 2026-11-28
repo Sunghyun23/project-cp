@@ -408,7 +408,7 @@ func _render() -> void:
 			add_child(mvp_screen)
 			mvp_screen.use_field_editor(camp_world)
 			mvp_screen.installation_requested.connect(func(id: String, point: Vector3, angle: int):
-				actor.position = actor.nearest(Vector3(.5, 0, camp_world.site_depth - .25))
+				actor.position = Vector3(.5, 0, camp_world.site_depth + .55)
 				if not actor.install(id,point,angle):
 					mvp_screen.install_failed("장비 옆까지 갈 수 없어요 · 위치를 바꾸거나 취소해 주세요"))
 			mvp_screen.installation_cancelled.connect(func(): actor.cancel())
