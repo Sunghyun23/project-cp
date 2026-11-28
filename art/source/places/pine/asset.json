@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "document_kind": "authoring_metadata_not_runtime",
+  "asset_id": "pine_night",
+  "kind": "campsite",
+  "coordinate_system": "z_up",
+  "art": {
+    "style_reference": "game/assets/pixel/campsite-pine-terrain.png",
+    "source_file": "game/assets/pixel/places/pine/night.png",
+    "canvas_size_px": [
+      1672,
+      941
+    ],
+    "variants": {
+      "day": "game/assets/pixel/campsite-pine-terrain.png",
+      "night": "game/assets/pixel/places/pine/night.png"
+    },
+    "movable_equipment_baked_in": false,
+    "layout_id": "pine_revision_2_shared_day_night"
+  },
+  "placement": {
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "max": [
+      10,
+      7,
+      0
+    ],
+    "step": 0.25,
+    "blocked": [
+      {
+        "id": "trees",
+        "name": "나무 구역",
+        "min": [
+          0,
+          0,
+          0
+        ],
+        "max": [
+          1.4,
+          1.4,
+          0
+        ]
+      }
+    ],
+    "ground_z": 0,
+    "table_z": 0.9
+  },
+  "view": {
+    "yaw_degrees": 30,
+    "elevation_degrees": 38,
+    "center": [
+      0.5,
+      0.69
+    ],
+    "width_ratio": 0.88,
+    "height_ratio": 0.3
+  },
+  "runtime_placement_source": "server/src/main/resources/gameplay/campsites.json#sites.pine",
+  "alignment_anchors": [],
+  "alignment_note": "기존 장소의 지형·구도·캔버스를 유지한다. 판정은 기존 view 투영을 사용하며 신규 수동 픽셀 대응점은 지정하지 않았다.",
+  "effect_regions": [],
+  "provenance": {
+    "tool_or_author": "built-in image_gen (lighting-weather edit)",
+    "reference_image": "game/assets/pixel/campsite-pine-terrain.png",
+    "generated_file": "exec-d22216d2-fbf0-4ace-8b79-ad1365f1a7eb.png",
+    "prompt": "prompt.txt",
+    "editable_layers_available": false
+  },
+  "review": {
+    "image": "생성 원본 확인: 장비 없는 야간 숲, 기존 구도 유지",
+    "coordinate_alignment": "기존 배치 데이터 유지. 동일 캔버스·구도 및 폰/폴드/PC 실행 화면 확인. 새 픽셀 대응점은 미측정.",
+    "runtime_link": "main.gd 및 capture-mvp.gd에서 낮/밤 이미지 선택",
+    "phone": "macOS Compatibility GPU 390x844 렌더링 확인",
+    "fold": "macOS Compatibility GPU 820x920 렌더링 확인",
+    "pc": "macOS Compatibility GPU 1280x900 렌더링 확인",
+    "android_device": "not_tested"
+  }
+}

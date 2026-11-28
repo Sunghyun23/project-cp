@@ -2,6 +2,7 @@ extends RefCounted
 
 const PROPS = preload("res://assets/pixel/camping-props.png")
 const PINE = preload("res://assets/pixel/campsite-pine-terrain.png")
+const PINE_NIGHT = preload("res://assets/pixel/places/pine/night.png")
 const LAKE = preload("res://assets/pixel/campsite-day-terrain.png")
 const DIRECTIONAL_PROPS = preload("res://assets/pixel/camping-props-directions.png")
 static var directional_meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/pixel/camping-props-directions-metadata.json"))

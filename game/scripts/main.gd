@@ -212,8 +212,11 @@ func _draw() -> void:
 	if scenery == null:
 		return
 	var night := _is_night()
-	scenery.texture = MVP_ASSETS.PINE if state.get("place", "") == "pine" else NIGHT if night else DAY
-	scenery.modulate = Color("7188ae") if night and state.get("place", "") == "pine" else Color.WHITE
+	if state.get("place", "") == "pine":
+		scenery.texture = MVP_ASSETS.PINE_NIGHT if night else MVP_ASSETS.PINE
+	else:
+		scenery.texture = NIGHT if night else DAY
+	scenery.modulate = Color.WHITE
 	var area := _scene_rect()
 	var source := _source_rect()
 	if area.end.y<size.y:

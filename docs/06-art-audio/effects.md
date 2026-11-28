@@ -29,7 +29,7 @@
 
 사용자가 밤 전환 시 배경이 바뀌지 않는다고 보고했다. 소나무 숲은 같은 원화에 밤 색을 적용하지만 `campsite.gdshader`가 텍스처만 출력해 CanvasItem의 `modulate`를 무시했다. vertex 단계의 색을 varying으로 전달하고 크롭된 텍스처에 곱해 실제 밤 색을 적용한다. fragment의 기본 COLOR는 이미 기본 UV 텍스처를 포함하므로 중복 곱하지 않는다. [공식 COLOR 설명](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/canvas_item_shader.html#color-and-texture)
 
-`tools/verify-night-background.gd`는 네트워크 없는 실제 Main 화면을 macOS Compatibility GPU로 렌더링해 배경 픽셀을 비교한다. 숲·호수의 17:59→18:00, 낮 복원, 수동 낮밤 전환, 저장 응답 후 수동 설정 유지를 검사했다. 숲은 새 야간 원화를 생성한 것이 아니라 기존 밤 색상 보정이 동작하도록 수정한 것이다. 게임 시간·장비·배치 규칙은 바꾸지 않는다.
+`tools/verify-night-background.gd`는 네트워크 없는 실제 Main 화면을 macOS Compatibility GPU로 렌더링해 배경 픽셀을 비교한다. 숲·호수의 17:59→18:00, 낮 복원, 수동 낮밤 전환, 저장 응답 후 수동 설정 유지를 검사했다. 이 수정 시점에는 숲 야간 원화 없이 기존 밤 색상 보정만 복원했다. 이후 D161의 야간 전용 배경으로 대체한다. 게임 시간·장비·배치 규칙은 바꾸지 않는다.
 
 밤 배경 수정 웹 빌드 `b15090130d2232e934f8e6eb4cb670a6e3cf379f2c157d2226c054becb12841f`를 공개 반영했다. 웹 복구 지점 `20261128T064624Z`를 보존했으며 API·DB는 변경하지 않았다. Android 실기기 GPU 검증은 별도다.
 
@@ -52,3 +52,11 @@ Godot 4.7.2 Compatibility를 유지한다. [공식 렌더러 표](https://docs.g
 1차 이펙트는 웹 빌드 `b9cc2d40de1356891a6663aa0d161bb04e92bfab37c517207b2349be63310460`으로 배포했다. 이후 선명도·표시 크기·낮밤/감상·적재 조작을 보완한 현재 빌드는 `9b56fe79c6d5e45ff62a964509cfa5c623d1813e8ad3b5833c3310be02ed3dd2`이다. build-info 일치·게임 파일 HTTP 200·API/DB 정상 상태를 확인했다. 현재 웹/API/DB 복구 지점은 `20261127T154557Z`이며 DB 스키마는 변경하지 않았다. 공개 API 임시 세션으로 조기 출발·낮밤 배경/조명 전환·이동·현장 드래그·식사·귀가 손실·다음 주·재접속 검사도 통과했다. 브라우저/Android GPU별 실제 플레이 성능 검증과 최종 아트 승인은 남아 있다.
 
 [선명도 보정 폰](../../design/mvp/previews/mvp/crisp-phone.png) · [폴드](../../design/mvp/previews/mvp/crisp-fold.png) · [PC](../../design/mvp/previews/mvp/crisp-pc.png)
+
+## 소나무 숲 야간 전용 배경 — D161
+
+2026-11-28 사용자가 야간 배경 제작·연결·수정 배포를 요청했다. 같은 숲 그림에 `7188ae` 색만 곱하던 처리를 대체해 `game/assets/pixel/places/pine/night.png`를 선택한다. 자동 밤 판정과 수동 낮밤 미리보기에 공통 적용하며 낮으로 돌아오면 기존 원화를 복원한다. 야간 그림에 기존 색을 중복 적용하지 않는다. 호숫가의 낮밤 교체는 유지한다.
+
+내장 image_gen의 lighting-weather 편집으로 기존 빈 숲을 참조해 1672×941 야간 PNG를 제작했다. 낮의 햇빛을 달빛·야간 하늘로 바꾸고 나무·다리·바위·빈 배치 공간의 구도를 유지했다. 이동 가능한 장비를 배경에 합성하지 않았다. 최종 아트 승인은 별도다. [제작 메타데이터](../../art/source/places/pine/asset.json)와 [전체 프롬프트](../../art/source/places/pine/prompt.txt)에 출처·좌표·금지 구역·연결 상태를 기록한다. 기존 서버 판정·게임 시간·저장 데이터는 변경하지 않는다.
+
+`verify-night-background.gd`로 숲·호수 각각 390×844 / 820×920 / 1280×900에서 17:59→18:00 자동 전환·수동 전환·저장 응답 후 표시 유지·낮 복원을 macOS Compatibility GPU 렌더링으로 확인했다. 별도 야간 텍스처 선택·낮밤 캔버스 동일·중복 색상 보정 없음도 검사한다. Godot 가져오기·스크립트 검사·웹 내보내기를 통과했다. [폰](../../design/mvp/previews/mvp/pine-night-phone.png) · [폴드](../../design/mvp/previews/mvp/pine-night-fold.png) · [PC](../../design/mvp/previews/mvp/pine-night-pc.png). 공개 배포 결과는 적용 후 기록한다. Android 실기기·브라우저별 GPU 검증은 미실행이다.

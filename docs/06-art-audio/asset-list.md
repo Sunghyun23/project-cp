@@ -272,3 +272,7 @@ MVP 추가 에셋: `camping-props.png`(2D 장비 6종), `camper-male-rain.png`·
 ## 현장 90도 회전 어셋
 
 `camping-props-directions.png`: 1024×1536 RGBA, 4열×6행, 셀 256×256. 텐트/의자/테이블/랜턴/버너/러그 각각 0·90·180·270도 방향 그림이다. `camping-props-directions-metadata.json`에 프레임별 피벗·불투명 영역·표시 크기를, `camping-props-directions-prompt.json`에 생성 근거를 보관한다. 원본 및 연결 기록은 `art/source/items/camping_props_directions/asset.json`. 현장만 방향 아틀라스를 사용하고 기존 상품/적재 그림은 보존한다. 최종 아트 승인과 Android 실기기 검증은 별도다.
+
+## 소나무 숲 야간 변형 — D161
+
+`game/assets/pixel/places/pine/night.png`: 기존 `campsite-pine-terrain.png`의 구도를 유지한 1672×941 빈 야간 배경. 내장 image_gen으로 제작하고 낮밤 자동 전환·수동 미리보기·캡처 도구에 연결한다. 이전 단색 보정을 대체한다. 배치 경계·나무 금지 구역은 기존 장소 데이터를 유지하며 [제작 메타데이터](../../art/source/places/pine/asset.json)·[프롬프트](../../art/source/places/pine/prompt.txt)에 기록한다. 최종 아트 승인과 Android 실기기 검증은 별도다.

@@ -30,8 +30,10 @@ func run() -> void:
 	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(host)
 	var background := TextureRect.new()
-	background.texture = Assets.PINE if snapshot.get("place","") == "pine" else load("res://assets/pixel/campsite-night-terrain.png") if night else Assets.LAKE
-	if night and snapshot.get("place","") == "pine": background.modulate=Color("7188ae")
+	if snapshot.get("place","") == "pine":
+		background.texture = Assets.PINE_NIGHT if night else Assets.PINE
+	else:
+		background.texture = load("res://assets/pixel/campsite-night-terrain.png") if night else Assets.LAKE
 	background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
