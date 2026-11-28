@@ -144,12 +144,13 @@ func run() -> void:
 		for i in range(900):
 			game.actor.advance(1.0/60)
 			if game.actor.mode == "sit": break
-		assert(game.actor.mode == "sit" and game.actor.animation() == "sit_%d"%angle)
+		assert(game.actor.mode == "sit" and game.actor.animation() == preload("res://ui/components/mvp_assets.gd").seated_animation(angle))
 		for id in ["male","female"]:
 			for outfit in ["basic","rain"]:
 				game.state.character_id=id;game.state.outfit=outfit;game._render()
 				await frames()
-				assert(world.camper_3d.animation == "sit_%d"%angle)
+				assert(world.camper_3d.animation == preload("res://ui/components/mvp_assets.gd").seated_animation(angle))
+				if id=="female" and outfit=="basic": root.get_texture().get_image().save_png("/tmp/cp-seat-direction-%d.png"%angle)
 				if angle==0 and id=="female" and outfit=="basic":
 					for dimensions in [Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900)]:
 						root.size=dimensions;await frames()

@@ -154,7 +154,24 @@
         "approach_distance": 0.95,
         "standing_on_move": true,
         "stackable_unchanged": false,
-        "seat_texture": "game/assets/pixel/field-furniture.png"
+        "seat_texture": "game/assets/pixel/field-furniture.png",
+        "sittable": true,
+        "character_animation_by_angle": {
+          "0": "sit_270",
+          "90": "sit_180",
+          "180": "sit_90",
+          "270": "sit_0"
+        },
+        "facing_screen_by_angle": {
+          "0": "front_left",
+          "90": "back_left",
+          "180": "back_right",
+          "270": "front_right"
+        },
+        "seat_textures": [
+          "game/assets/pixel/starter-furniture.png",
+          "game/assets/pixel/field-furniture.png"
+        ]
       }
     },
     "table": {

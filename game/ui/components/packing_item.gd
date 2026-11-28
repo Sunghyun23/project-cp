@@ -8,6 +8,7 @@ var can_drag := true
 var footprint_cells: Array = []
 var caption := ""
 var packed := false
+var upgraded := false
 
 func _ready() -> void:
 	var title:=Label.new()
@@ -25,7 +26,7 @@ func _draw() -> void:
 	if packed:
 		draw_rect(Rect2(Vector2(4, 4), Vector2(28, 22)), ink.darkened(.30))
 		draw_string(get_theme_default_font(),Vector2(6,20),"✓",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("fff7df"))
-	var texture:=Assets.item_texture(item_id)
+	var texture:=Assets.item_texture(item_id, upgraded)
 	if texture: draw_texture_rect(texture,Rect2(Vector2((size.x-44)/2,2),Vector2(44,44)),false)
 	else: draw_string(get_theme_default_font(),Vector2(20,36),"우비" if item_id == "rainwear" else "음식",HORIZONTAL_ALIGNMENT_LEFT,-1,18)
 	var shape: Array=[]
@@ -52,7 +53,7 @@ func _get_drag_data(_at: Vector2) -> Variant:
 	if disabled or not can_drag: return null
 	pressed.emit()
 	var preview:=TextureRect.new()
-	preview.texture=Assets.item_texture(item_id)
+	preview.texture=Assets.item_texture(item_id, upgraded)
 	preview.custom_minimum_size=Vector2(80,80)
 	preview.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED

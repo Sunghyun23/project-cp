@@ -29,6 +29,9 @@ var outcome := ""
 var pending := false
 var office_button: Button
 var office_screen
+var mailbox_button: Button
+var mailbox_scroll: ScrollContainer
+var mailbox_items: VBoxContainer
 
 func label(value: String, font_size: int = 16, floating: bool = false) -> Label:
 	var item := Label.new()
@@ -117,6 +120,20 @@ func _ready() -> void:
 	reload_button.visible = false
 	reload_button.pressed.connect(func(): reload_requested.emit())
 	column.add_child(reload_button)
+	mailbox_button = Action.instantiate()
+	mailbox_button.text = "집 택배함"
+	mailbox_button.pressed.connect(func():
+		mailbox_scroll.visible = not mailbox_scroll.visible
+		fit.call_deferred())
+	column.add_child(mailbox_button)
+	mailbox_scroll = ScrollContainer.new()
+	mailbox_scroll.custom_minimum_size.y = 128
+	mailbox_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	mailbox_scroll.hide()
+	column.add_child(mailbox_scroll)
+	mailbox_items = VBoxContainer.new()
+	mailbox_items.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mailbox_scroll.add_child(mailbox_items)
 	office_screen=preload("res://ui/screens/document_work.gd").new()
 	office_screen.z_index=30
 	add_child(office_screen)
@@ -148,7 +165,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, check_require
 	office_button.text="서류 검토 이어하기" if value.has("office_task") else "서류 검토 업무 시작"
 	var was_open: bool=office_screen.visible
 	office_screen.visible=bool(value.get("office_task",{}).get("active",false))
-	for button in [work_button,office_button,reload_button,account_button]:
+	for button in [work_button,office_button,reload_button,account_button,mailbox_button]:
 		button.focus_mode=Control.FOCUS_NONE if office_screen.visible else Control.FOCUS_ALL
 	if office_screen.visible:
 		office_screen.apply_state(value,saving,message,check_required)
@@ -158,7 +175,31 @@ func apply_state(value: Dictionary, saving: bool, message: String, check_require
 	reload_button.visible = check_required
 	reload_button.disabled = saving
 	account_button.disabled = saving
+	refresh_mailbox()
 	fit.call_deferred()
+
+func refresh_mailbox() -> void:
+	var parcels: Array = snapshot.get("parcel_box", [])
+	var fee := int(snapshot.get("parcel_fee", 5))
+	mailbox_button.text = "집 택배함 · %d개" % parcels.size()
+	mailbox_button.disabled = pending or office_screen.visible
+	for child in mailbox_items.get_children():
+		mailbox_items.remove_child(child)
+		child.queue_free()
+	if parcels.is_empty():
+		mailbox_items.add_child(label("받을 장비가 없어요."))
+	for id in parcels:
+		var item_name: String = id
+		for item in snapshot.get("item_catalog", []):
+			if item.id == id: item_name = item.name
+		var claim: Button = Action.instantiate()
+		claim.text = "%s 받기 · %d원" % [item_name, fee]
+		claim.disabled = mailbox_button.disabled or int(snapshot.get("money", 0)) < fee
+		claim.focus_mode = Control.FOCUS_NONE if office_screen.visible else Control.FOCUS_ALL
+		claim.pressed.connect(func(): office_action_requested.emit("claim_parcel", id, {}))
+		mailbox_items.add_child(claim)
+	if not parcels.is_empty() and int(snapshot.get("money", 0)) < fee:
+		mailbox_items.add_child(label("소지금이 부족해요. 장비는 계속 보관돼요."))
 
 func focus_initial() -> void:
 	if office_screen.visible: office_screen.focus_action()

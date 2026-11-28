@@ -46,6 +46,17 @@ func run() -> void:
 	count=sent.size()
 	key=InputEventKey.new();key.keycode=KEY_2;key.pressed=true;Input.parse_input_event(key);await process_frame
 	assert(sent.size()==count and not desk.visible and root.gui_get_focus_owner()==ui.office_button)
+	state.parcel_box=["tent"];state.parcel_fee=5
+	state.item_catalog=[{"id":"tent","name":"낡은 텐트"}]
+	ui.apply_state(state,false,"",false)
+	ui.mailbox_button.pressed.emit()
+	assert(ui.mailbox_scroll.visible)
+	var parcel_button: Button=ui.mailbox_items.get_child(0)
+	assert(parcel_button.text.contains("5원") and not parcel_button.disabled)
+	parcel_button.pressed.emit()
+	assert(sent.back().command=="claim_parcel" and sent.back().choice=="tent")
+	ui.mailbox_button.pressed.emit()
+
 	state.office_task.active=true;ui.apply_state(state,false,"",false)
 	for dimensions in [Vector2i(320,720),Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900),Vector2i(844,390)]:
 		root.size=dimensions

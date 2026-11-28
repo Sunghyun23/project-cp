@@ -1,6 +1,7 @@
 extends RefCounted
 
 signal installation_ready
+const Assets = preload("res://ui/components/mvp_assets.gd")
 const Editor = preload("res://ui/components/camp_editor_3d.gd")
 var position := Vector3(4,0,4)
 var mode := "idle"
@@ -158,6 +159,6 @@ func advance(delta: float) -> void:
 		else: mode="idle"
 
 func animation() -> String:
-	if mode == "sit": return "sit_%d"%seat_angle
+	if mode == "sit": return Assets.seated_animation(seat_angle)
 	if mode in ["install","saving"]: return "install"
 	return "walk" if direct_walking or not path.is_empty() else "idle"

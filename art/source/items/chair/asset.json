@@ -26,7 +26,11 @@
       128,
       192
     ],
-    "transparent_background": true
+    "transparent_background": true,
+    "runtime_variants": {
+      "starter": "game/assets/pixel/starter-furniture.png",
+      "upgraded": "game/assets/pixel/field-furniture.png"
+    }
   },
   "placement": {
     "footprint_xy": [
@@ -95,10 +99,10 @@
     ],
     "approach_rule": "점유 반너비/반깊이 + 0.45 단위의 네 후보 중 도달 가능한 최단 경로 선택",
     "animation_by_angle": {
-      "0": "sit_0",
-      "90": "sit_90",
-      "180": "sit_180",
-      "270": "sit_270"
+      "0": "sit_270",
+      "90": "sit_180",
+      "180": "sit_90",
+      "270": "sit_0"
     },
     "exit_on_move": true,
     "installation": {
@@ -108,7 +112,13 @@
       "cancel_before_save": true,
       "visibility": "preview_ghost_then_hidden_until_animation_and_server_success"
     },
-    "runtime_link": "game/scripts/camp_actor.gd / game/ui/components/camp_editor_3d.gd / game/ui/components/character_catalog.gd"
+    "runtime_link": "game/scripts/camp_actor.gd / game/ui/components/camp_editor_3d.gd / game/ui/components/character_catalog.gd",
+    "facing_screen_by_angle": {
+      "0": "front_left",
+      "90": "back_left",
+      "180": "back_right",
+      "270": "front_right"
+    }
   },
   "review": {
     "runtime_link": "connected",

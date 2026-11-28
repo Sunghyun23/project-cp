@@ -17,7 +17,7 @@ const Paper = preload("res://ui/components/paper_panel.tscn")
 const Action = preload("res://ui/components/action_button.tscn")
 const Chip = preload("res://ui/components/hud_chip.tscn")
 const Notice = preload("res://ui/components/notice.tscn")
-const TITLES = {"place":"이번엔 어디로 떠날까요?", "equipment":"나만의 캠핑 장비", "prepare":"날씨에 맞춰 준비해요", "packing":"주말을 트렁크에 담아요", "setup":"나만의 캠프를 펼쳐요", "free":"여유로운 캠핑 시간", "cooking":"보글보글, 따뜻한 한 끼", "meal_ready":"밖에서 먹으면 더 맛있죠", "sleep_required":"오늘은 푹 쉬어가요", "teardown":"머문 자리를 정리해요", "return_pack":"다시 차곡차곡, 집으로", "settlement":"이번 주말도 잘 쉬었어요"}
+const TITLES = {"place":"이번엔 어디로 떠날까요?", "equipment":"캠핑 장비 상점", "prepare":"날씨에 맞춰 준비해요", "packing":"주말을 트렁크에 담아요", "setup":"나만의 캠프를 펼쳐요", "free":"여유로운 캠핑 시간", "cooking":"보글보글, 따뜻한 한 끼", "meal_ready":"밖에서 먹으면 더 맛있죠", "sleep_required":"오늘은 푹 쉬어가요", "teardown":"머문 자리를 정리해요", "return_pack":"다시 차곡차곡, 집으로", "settlement":"이번 주말도 잘 쉬었어요"}
 var state: Dictionary = {}
 var locked := false
 var network_busy := false
@@ -229,6 +229,8 @@ func phase() -> String:
 	return state.get("phase", "")
 
 func item_name(id: String) -> String:
+	if id in state.get("gear_upgrades", []):
+		return {"tent":"캠핑 텐트","stove":"새 버너·코펠","sleeping_bag":"누빔 침낭","chair":"캠핑 의자","table":"캠핑 테이블","lantern":"캠핑 랜턴"}.get(id, id)
 	for item in state.get("item_catalog", []):
 		if item.id == id:
 			return item.name
@@ -316,7 +318,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	elif camp:
 		var minute := int(state.get("camp_minute", 960))
 		info.text += " · %02d:%02d" % [(minute / 60) % 24, minute % 60]
-	var structural := [phase(), state.get("owned"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() in ["setup","packing","return_pack"] else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("outfit_auto"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("parcel_box"), show_forecast, check_required]
+	var structural := [phase(), state.get("owned"), state.get("gear_upgrades"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() in ["setup","packing","return_pack"] else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("outfit_auto"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("parcel_box"), show_forecast, check_required]
 	var next_signature := JSON.stringify(structural)
 	if signature != next_signature:
 		signature = next_signature
@@ -408,8 +410,17 @@ func render_body() -> void:
 					continue
 				var owned: bool = item.id in state.owned
 				var waiting: bool = item.id in state.get("parcel_box", [])
-				var purchase := button(items, item.name + ("\n✓ 보유 중" if owned else "\n택배함" if waiting else "\n%d원" % item.price), "buy_item", item.id, not owned and not waiting and int(state.money) >= int(item.price))
-				purchase.icon = Assets.item_texture(item.id)
+				var upgrade_price := int(item.get("upgrade_price",0))
+				var upgraded: bool = item.id in state.get("gear_upgrades", [])
+				var can_upgrade: bool = owned and upgrade_price > 0 and not upgraded
+				var subtitle := "보유 중" if owned else "택배함" if waiting else "%d원" % item.price
+				if can_upgrade: subtitle = "새 장비로 교체 · %d원" % upgrade_price
+				if upgraded: subtitle = "✓ 교체 완료"
+				var can_buy: bool = not owned and not waiting and int(state.money) >= int(item.price)
+				var purchase := button(items, item_name(item.id) + "\n" + subtitle,
+					"upgrade_gear" if can_upgrade else "buy_item", item.id,
+					can_buy or (can_upgrade and int(state.money) >= upgrade_price))
+				purchase.icon = Assets.item_texture(item.id, upgraded or can_upgrade)
 				purchase.expand_icon = true
 				purchase.add_theme_constant_override("icon_max_width", 44)
 				purchase.custom_minimum_size = Vector2(0, 80)
@@ -476,7 +487,7 @@ func render_body() -> void:
 		"cooking":
 			content.add_child(label("버너 앞에서 라면을 끓여요.\n%d / 3 단계" % int(state.cooking)))
 			var illustration := TextureRect.new()
-			illustration.texture = Assets.item_texture("stove")
+			illustration.texture = Assets.item_texture("stove", "stove" in state.get("gear_upgrades", []))
 			illustration.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			illustration.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			illustration.custom_minimum_size.y = 140
@@ -763,6 +774,7 @@ func build_grid() -> void:
 	for id in selected_ids:
 		var card:=PackingItem.new()
 		card.item_id=id
+		card.upgraded=id in state.get("gear_upgrades", [])
 		card.item_rotated=state.cargo.get(id,{}).get("rotated",false)
 		card.packing_angle=Board.angle_of(state.cargo.get(id,{}))
 		card.can_drag=state.get("pack_started",false)
@@ -787,6 +799,7 @@ func build_grid() -> void:
 	viewport.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_child(viewport)
 	board = Board.new()
+	board.upgraded_ids = state.get("gear_upgrades", [])
 	board.cursor = last_cursor
 	board.cell_activated.connect(func(x: int, y: int): act("place_item", selected_item, {"x":x, "y":y, "rotated":item_rotated,"rotation_degrees":packing_rotation}))
 	board.item_selected.connect(func(id: String):

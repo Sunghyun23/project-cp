@@ -68,7 +68,7 @@ var fire_shapes: Array[MeshInstance3D] = []
 var rain_shapes: Array[MeshInstance3D] = []
 
 static func dimensions(id: String) -> Vector3:
-	return {"tent":Vector3(2.0,1.8,2.0), "table":Vector3(2.1,.9,1.4), "chair":Vector3(1,1.2,1), "stove":Vector3(1.4,.65,.7), "lantern":Vector3(.5,1,.7), "rug":Vector3(1.4,.06,2.1)}.get(id, Vector3.ONE)
+	return {"tent":Vector3(2.0,1.8,2.0), "table":Vector3(2.1,.9,1.4), "chair":Vector3(1,1.2,1), "stove":Vector3(1.4,.65,.7), "lantern":Vector3(.5,1,.7), "rug":Vector3(1.4,.06,2.1), "sleeping_bag":Vector3(.75,.12,1.75)}.get(id, Vector3.ONE)
 
 static func rotation_of(value: Dictionary) -> int:
 	return int(value.get("rotation_degrees",90 if value.get("rotated",false) else 0))
@@ -111,15 +111,16 @@ func cylinder(parent: Node3D, radius: float, height: float, at: Vector3, color: 
 func model(id: String, angle: int = 0) -> Node3D:
 	var node := Node3D.new()
 	var sprite := Sprite3D.new()
-	sprite.texture = Assets.field_texture(id,angle)
+	var upgraded: bool = id in state.get("gear_upgrades", [])
+	sprite.texture = Assets.field_texture(id,angle,upgraded)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.shaded = true
 	sprite.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	node.set_meta("rotation_degrees",angle)
-	var width := Assets.field_sprite_width(id)
-	var pivot := Assets.field_pivot(id,angle)
+	var width := Assets.field_sprite_width(id,upgraded)
+	var pivot := Assets.field_pivot(id,angle,upgraded)
 	sprite.pixel_size = width/float(sprite.texture.get_width())
 	var height := sprite.pixel_size*float(sprite.texture.get_height())
 	# Billboard의 화면 위쪽으로 보정해 실제 발점이 배치 좌표에 고정된다.
@@ -277,7 +278,7 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 			dashed_boundary(grid_root,at,Vector2(blocked.max[0]-blocked.min[0],blocked.max[2]-blocked.min[2]),overlay_material("e99882",.7))
 	grid_root.visible = not readonly
 	field = state.get("field", {})
-	var key := JSON.stringify([field,selected,proposed_rotation,state.get("cargo",{}).keys(),readonly])
+	var key := JSON.stringify([field,selected,proposed_rotation,state.get("cargo",{}).keys(),state.get("gear_upgrades",[]),readonly])
 	if scene_key != key:
 		scene_key = key
 		for child in items_root.get_children():
@@ -347,7 +348,7 @@ func set_installation_preview(preview: bool, installing: bool) -> void:
 			actual_sources[id]=Vector3(float(p.x)-origin_x,float(p.y),float(p.z)-origin_z)
 		effects.update_sources(actual_sources)
 
-func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, facing_left: bool, pose: String = "", seat_height: float = 0.0) -> void:
+func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, facing_left: bool, pose: String = "", seat_height: float = 0.0, seat_rotation: int = -1) -> void:
 	var at=ground_point(screen_foot,0)
 	if at==null: return
 	camper_3d.visible=true
@@ -358,7 +359,7 @@ func update_camper(frames: SpriteFrames, screen_foot: Vector2, walking: bool, fa
 	camper_3d.pixel_size=2.6/float(frame.get_height())
 	camper_3d.position=Vector3(at)+Vector3(0,seat_height,0)+camera.global_basis.y*2.6*.44
 	if String(animation_name).begins_with("sit_"):
-		var angle := int(String(animation_name).trim_prefix("sit_"))
+		var angle := seat_rotation if seat_rotation >= 0 else int(String(animation_name).trim_prefix("sit_"))
 		for item in items_root.get_children():
 			if item.get_child(1).get_meta("item") != "chair": continue
 			var chair_sprite: Sprite3D=item.get_child(0)
