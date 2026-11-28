@@ -101,7 +101,7 @@ func run() -> void:
 	game.state.phase="free"
 	game._render()
 	ui.begin_scenery()
-	assert(ui.viewing_scenery and not ui.dock.visible and ui.scenery_exit.visible)
+	assert(ui.viewing_scenery and not ui.dock.visible and ui.camp_menu.visible and ui.scenery_toggle.text == "감상 종료")
 	await frames()
 	# Real touch input reaches Main while the scenery view stays open.
 	var at: Vector2=world.screen_point(Vector3(5-world.origin_x,0,4-world.origin_z))
@@ -150,6 +150,8 @@ func run() -> void:
 				game.state.character_id=id;game.state.outfit=outfit;game._render()
 				await frames()
 				assert(world.camper_3d.animation == "sit_%d"%angle)
+				var pose: AtlasTexture = world.camper_3d.sprite_frames.get_frame_texture(world.camper_3d.animation, 0)
+				assert(is_equal_approx(pose.region.position.x / pose.region.size.x, 3 - angle / 90))
 				if angle==0 and id=="female" and outfit=="basic":
 					for dimensions in [Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900)]:
 						root.size=dimensions;await frames()
@@ -168,7 +170,65 @@ func run() -> void:
 		assert(not ui.viewing_scenery)
 		event.pressed=false;Input.parse_input_event(event);await process_frame
 		ui.begin_scenery()
-	print("PASS camp actions: mouse/touch preview / confirm / cancel / walk+install / once-only save / failure / rotation / scenery movement / four seat directions / both characters+outfits / phone-fold-PC")
+	ui.viewing_scenery = false
+	game.state.phase = "free"
+	game.state.field.tent = {"x":5, "y":0, "z":4, "rotation_degrees":0}
+	game.state.field.sleeping_bag = {"x":5, "y":0, "z":4, "rotation_degrees":90}
+	game._render()
+	root.size = Vector2i(390, 844)
+	await frames()
+	assert(world.bag_inside_tent())
+	assert(game.actor.install("sleeping_bag", Vector3(5, 0, 4), 90))
+	game.actor.cancel()
+	assert(world.validation_reason("sleeping_bag", Vector3(5, 0, 4)).is_empty())
+	assert(not world.validation_reason("sleeping_bag", Vector3(7, 0, 4)).is_empty())
+	assert(not world.validation_reason("tent", Vector3(6, 0, 4)).is_empty())
+	var before_sleep: int = game.requests.size()
+	ui.act("sleep")
+	assert(is_instance_valid(ui.sleep_scene))
+	ui.sleep_scene.set_process(false)
+	ui.sleep_scene._process(1.8)
+	await frames()
+	root.get_texture().get_image().save_png("/tmp/cp-sleep-phone.png")
+	ui.act("sleep")
+	assert(game.requests.size() == before_sleep)
+	ui.sleep_scene._process(1.0)
+	assert(game.requests.size() == before_sleep + 1 and game.requests.back().command == "sleep")
+
+	game.state.phase = "equipment"
+	game.state.item_catalog = [{"id":"chair","name":"의자","price":25,"upgrade_price":15}]
+	game._render()
+	await frames()
+	var equipment: Button
+	for candidate in ui.action_buttons:
+		if candidate.text.contains("15원"): equipment = candidate
+	assert(equipment != null)
+	var before_buy: int = game.requests.size()
+	equipment.pressed.emit()
+	await frames()
+	assert(ui.purchase_dialog.visible and game.requests.size() == before_buy)
+	ui.purchase_dialog.get_cancel_button().pressed.emit()
+	await frames()
+	assert(not ui.purchase_dialog.visible and game.requests.size() == before_buy)
+	equipment.pressed.emit()
+	await frames()
+	assert(ui.purchase_dialog.visible)
+	ui.purchase_dialog.get_ok_button().pressed.emit()
+	await frames()
+	assert(game.requests.size() == before_buy + 1 and game.requests.back().command == "upgrade_gear")
+	game.state.phase = "settlement"
+	game.state.week_income = 45
+	game.state.week_spent = 20
+	game.state.parcel_box = ["lantern"]
+	game._render()
+	await frames()
+	assert(ui.details_dialog.visible and ui.details_mode == "settlement")
+	assert(ui.camp_menu.visible and not ui.dock.visible)
+	ui.open_details("parcels")
+	assert(ui.details_dialog.visible and ui.details_mode == "parcels" and ui.details.get_child(0).text.contains("5원"))
+	ui.details_dialog.hide()
+	assert(ui.camp_menu.visible)
+	print("PASS camp actions: mouse/touch preview / confirm / cancel / walk+install / once-only save / failure / rotation / scenery movement / four seat directions / both characters+outfits / phone-fold-PC / sleep / purchase confirmation")
 	game.queue_free();await process_frame;quit()
 
 func frames() -> void:

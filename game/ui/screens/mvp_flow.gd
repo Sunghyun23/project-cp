@@ -17,9 +17,23 @@ const Paper = preload("res://ui/components/paper_panel.tscn")
 const Action = preload("res://ui/components/action_button.tscn")
 const Chip = preload("res://ui/components/hud_chip.tscn")
 const Notice = preload("res://ui/components/notice.tscn")
-const TITLES = {"place":"이번엔 어디로 떠날까요?", "equipment":"캠핑 장비 상점", "prepare":"날씨에 맞춰 준비해요", "packing":"주말을 트렁크에 담아요", "setup":"나만의 캠프를 펼쳐요", "free":"여유로운 캠핑 시간", "cooking":"보글보글, 따뜻한 한 끼", "meal_ready":"밖에서 먹으면 더 맛있죠", "sleep_required":"오늘은 푹 쉬어가요", "teardown":"머문 자리를 정리해요", "return_pack":"다시 차곡차곡, 집으로", "settlement":"이번 주말도 잘 쉬었어요"}
+const CampSleep = preload("res://ui/screens/camp_sleep.gd")
 var state: Dictionary = {}
 var locked := false
+var purchase_dialog: ConfirmationDialog
+var pending_purchase: Dictionary = {}
+var sleep_scene: Control
+var status_bar: PanelContainer
+var status_row: HBoxContainer
+var camp_menu: HBoxContainer
+var options: MenuButton
+var forecast_button: Button
+var scenery_toggle: Button
+var clothes_menu: PopupMenu
+var details_dialog: AcceptDialog
+var details: VBoxContainer
+var details_mode := ""
+var settlement_shown := false
 var network_busy := false
 var check_required := false
 var signature := ""
@@ -33,16 +47,12 @@ var effects_button: Button
 var night_button: Button
 var viewing_scenery := false
 var scenery_hint: Label
-var scenery_exit: Button
 var preview_dirty := false
 var installing := false
 var placement_cancel: Button
 var packing_confirm := false
 var show_forecast := false
 var elapsed := 0.0
-var toolbar: HBoxContainer
-var header: VBoxContainer
-var title: Label
 var info: Label
 var money: PanelContainer
 var stamina: PanelContainer
@@ -79,22 +89,59 @@ func label(value: String, large: bool = false) -> Label:
 
 func _ready() -> void:
 	UiInput.ensure()
+	purchase_dialog = ConfirmationDialog.new()
+	purchase_dialog.title = "장비 구매"
+	purchase_dialog.ok_button_text = "구매 확정"
+	purchase_dialog.cancel_button_text = "취소"
+	purchase_dialog.confirmed.connect(func():
+		if phase() == "equipment" and not pending_purchase.is_empty():
+			act(pending_purchase.command, pending_purchase.id)
+		pending_purchase.clear())
+	purchase_dialog.canceled.connect(func(): pending_purchase.clear())
+	add_child(purchase_dialog)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	header = VBoxContainer.new()
-	header.size.x = size.x - 40
-	header.add_theme_constant_override("separation", 8)
-	add_child(header)
-	var top := HBoxContainer.new()
-	toolbar = top
-	header.add_child(top)
+	status_bar = Paper.instantiate()
+	status_bar.z_index = 22
+	add_child(status_bar)
+	status_row = HBoxContainer.new()
+	status_row.add_theme_constant_override("separation", 5)
+	status_bar.add_child(status_row)
+	camp_menu = HBoxContainer.new()
+	camp_menu.z_index = 22
+	camp_menu.add_theme_constant_override("separation", 4)
+	add_child(camp_menu)
+	options = MenuButton.new()
+	options.text = "⋯"
+	options.tooltip_text = "캠핑 메뉴"
+	status_row.add_child(options)
+	options.get_popup().id_pressed.connect(camp_option)
+	options.about_to_popup.connect(refresh_options)
+	clothes_menu = PopupMenu.new()
+	clothes_menu.id_pressed.connect(func(id: int): act("set_clothes", ["auto", "basic", "rain"][id]))
+	options.get_popup().add_child(clothes_menu)
+	details_dialog = AcceptDialog.new()
+	details_dialog.exclusive = true
+	details_dialog.theme = preload("res://ui/theme/camping.tres")
+	details_dialog.ok_button_text = "닫기"
+	add_child(details_dialog)
+	var details_scroll := ScrollContainer.new()
+	details_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	details_scroll.custom_minimum_size = Vector2(260, 180)
+	details_dialog.add_child(details_scroll)
+	details = VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details_scroll.add_child(details)
 	info = label("이번 주말은 캠핑")
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_theme_color_override("font_color", Color("fff7df"))
 	info.add_theme_color_override("font_shadow_color", Color("213428"))
 	info.add_theme_constant_override("shadow_offset_x", 2)
 	info.add_theme_constant_override("shadow_offset_y", 2)
-	top.add_child(info)
+	status_row.add_child(info)
+	info.autowrap_mode = TextServer.AUTOWRAP_OFF
+	info.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var forecast := Action.instantiate()
+	forecast_button = forecast
 	forecast.custom_minimum_size.x = 80
 	forecast.text = "예보"
 	forecast.pressed.connect(func():
@@ -102,7 +149,8 @@ func _ready() -> void:
 		update_placement_visibility()
 		signature = ""
 		render_body())
-	top.add_child(forecast)
+	add_child(forecast)
+	forecast.hide()
 	tools_button = Action.instantiate()
 	tools_button.custom_minimum_size.x = 64
 	tools_button.text = "도구"
@@ -113,7 +161,8 @@ func _ready() -> void:
 		signature = ""
 		render_body()
 		update_placement_visibility())
-	top.add_child(tools_button)
+	add_child(tools_button)
+	tools_button.hide()
 	effects_button=Action.instantiate()
 	effects_button.text="효과"
 	effects_button.custom_minimum_size.x=64
@@ -121,7 +170,8 @@ func _ready() -> void:
 	effects_button.button_pressed=true
 	effects_button.tooltip_text="3D 광원·입자·그림자 켜기/끄기"
 	effects_button.toggled.connect(func(value: bool): effects_toggled.emit(value))
-	top.add_child(effects_button)
+	add_child(effects_button)
+	effects_button.hide()
 	night_button=Action.instantiate()
 	night_button.text="낮"
 	night_button.custom_minimum_size.x=56
@@ -130,29 +180,24 @@ func _ready() -> void:
 	night_button.toggled.connect(func(value: bool):
 		night_button.text="밤" if value else "낮"
 		night_preview_toggled.emit(value))
-	top.add_child(night_button)
-	if OS.has_feature("web"):
-		var account := Action.instantiate()
-		account.custom_minimum_size.x = 64
-		account.text = "계정"
-		account.pressed.connect(func(): account_requested.emit())
-		top.add_child(account)
-	title = label("주말을 준비해요", true)
-	title.add_theme_color_override("font_color", Color("fff7df"))
-	title.add_theme_color_override("font_shadow_color", Color("213428"))
-	title.add_theme_constant_override("shadow_offset_x", 2)
-	title.add_theme_constant_override("shadow_offset_y", 2)
-	header.add_child(title)
-	var stats := HFlowContainer.new()
-	stats.add_theme_constant_override("h_separation", 8)
-	stats.add_theme_constant_override("v_separation", 8)
-	header.add_child(stats)
+	add_child(night_button)
+	night_button.hide()
 	money = Chip.instantiate()
-	money.get_node("Value").text = "소지금 · 0원"
-	stats.add_child(money)
 	stamina = Chip.instantiate()
-	stamina.get_node("Value").text = "체력 · 0 / 100"
-	stats.add_child(stamina)
+	for chip in [money, stamina]:
+		chip.custom_minimum_size = Vector2.ZERO
+		chip.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		status_row.add_child(chip)
+	status_row.move_child(options, -1)
+	var strip := StyleBoxFlat.new()
+	strip.bg_color = Color("24362deb")
+	strip.border_color = Color("8b634a")
+	strip.set_border_width_all(2)
+	strip.set_corner_radius_all(6)
+	strip.content_margin_left = 9
+	strip.content_margin_right = 5
+	status_bar.add_theme_stylebox_override("panel", strip)
+	options.custom_minimum_size = Vector2(36, 42)
 	dock = Paper.instantiate()
 	dock.custom_minimum_size.x = minf(700, size.x - 24)
 	add_child(dock)
@@ -206,12 +251,7 @@ func _ready() -> void:
 	placement_done.pressed.connect(func(): act("setup_done"))
 	placement_controls.add_child(placement_done)
 	placement_done.custom_minimum_size = Vector2(144,56)
-	scenery_exit=Action.instantiate()
-	scenery_exit.text="감상 종료"
-	scenery_exit.custom_minimum_size=Vector2(120,52)
-	scenery_exit.pressed.connect(end_scenery)
-	add_child(scenery_exit)
-	scenery_hint=label("바닥: 이동 · 의자: 앉기 · Esc / 패드 B: 종료")
+	scenery_hint=label("터치: 이동 · 의자에 앉기")
 	scenery_hint.add_theme_color_override("font_color",Color("fff7df"))
 	scenery_hint.add_theme_color_override("font_shadow_color",Color("213428"))
 	scenery_hint.add_theme_constant_override("shadow_offset_x",2)
@@ -243,9 +283,30 @@ func names(ids: Array) -> String:
 	return ", ".join(values) if not values.is_empty() else "없음"
 
 func act(command: String, choice: String = "", extra: Dictionary = {}) -> void:
-	if locked: return
+	if locked or is_instance_valid(sleep_scene): return
 	if command != "tick" and phase() == "setup" and (preview_dirty or installing or drop_pending): return
+	if command == "sleep" and field_editor != null and field_editor.bag_inside_tent():
+		sleep_scene = CampSleep.new()
+		add_child(sleep_scene)
+		sleep_scene.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		sleep_scene.play(state, field_editor)
+		options.disabled = true
+		for item in camp_menu.get_children(): item.disabled = true
+		sleep_scene.finished.connect(func():
+			sleep_scene.queue_free()
+			sleep_scene = null
+			options.disabled = false
+			for item in camp_menu.get_children(): item.disabled = locked or not item.get_meta("available", true)
+			action_requested.emit(command, choice, extra))
+		return
 	action_requested.emit(command, choice, extra)
+
+func confirm_equipment(id: String, price: int, upgrade: bool) -> void:
+	if locked or phase() != "equipment" or purchase_dialog.visible: return
+	pending_purchase = {"id": id, "command": "upgrade_gear" if upgrade else "buy_item"}
+	purchase_dialog.dialog_text = "%s\n%s %d원 · 보유 %d원" % [
+		item_name(id), "교체" if upgrade else "구매", price, int(state.money)]
+	purchase_dialog.popup_centered(Vector2i(mini(360, int(size.x)-24), 0))
 
 func button(parent: Node, caption: String, command: String, choice: String = "", enabled: bool = true, primary: bool = false) -> Button:
 	var node := Action.instantiate()
@@ -286,12 +347,10 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	if state.get("phase", "") != "setup" and value.get("phase", "") == "setup":
 		field_initialized_for = ""
 		tools_hidden = true
+	if value.get("phase", "") != phase():
+		details_dialog.hide()
+		settlement_shown = false
 	state = value
-	var packing_now:=phase() in ["packing","return_pack"]
-	title.visible=not packing_now
-	money.visible=not packing_now
-	stamina.visible=not packing_now
-	tools_button.visible = phase() == "setup"
 	if must_check: tools_hidden = false
 	update_placement_visibility()
 	var saved_drop: Dictionary = state.get("field",{}).get(selected_item,{})
@@ -307,17 +366,17 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	locked = saving or must_check
 	network_busy = request_busy
 	check_required = must_check
-	money.get_node("Value").text = "소지금 · %d원" % int(state.get("money", 0))
-	stamina.get_node("Value").text = "체력 · %d / 100" % int(state.get("stamina", 0))
+	money.get_node("Value").text = "● %d원" % int(state.get("money", 0))
+	stamina.get_node("Value").text = "♥ %d/100" % int(state.get("stamina", 0))
 	var camp := phase() in ["setup", "free", "cooking", "meal_ready", "sleep_required", "teardown", "return_pack"]
 	var day := "일요일" if int(state.get("camp_day", 0)) == 1 else "토요일"
-	info.text = "%d주 · %s · %s" % [int(state.get("week", 1)), day if camp else "금요일 준비", Assets.weather_name(Assets.current_weather(state))]
-	title.text = TITLES.get(phase(), phase())
+	info.text = "%d주 · %s" % [int(state.get("week", 1)), day if camp else ("정산" if phase() == "settlement" else "금요일")]
+	info.tooltip_text = Assets.weather_name(Assets.current_weather(state))
 	if phase() in ["packing", "return_pack"]:
 		info.text = "%d주 · 남은 시간 %d초" % [int(state.get("week", 1)), int(ceil(float(state.get("pack_remaining_ms", 45000)) / 1000))]
 	elif camp:
 		var minute := int(state.get("camp_minute", 960))
-		info.text += " · %02d:%02d" % [(minute / 60) % 24, minute % 60]
+		info.text += " %02d:%02d" % [(minute / 60) % 24, minute % 60]
 	var structural := [phase(), state.get("owned"), state.get("gear_upgrades"), state.get("meal_owned"), state.get("cargo", {}).keys() if phase() in ["setup","packing","return_pack"] else null, state.get("field", {}).keys() if phase() in ["setup", "teardown"] else null, state.get("outfit"), state.get("outfit_auto"), state.get("pack_started"), state.get("cooking"), state.get("camp_day"), state.get("rested"), int(state.get("stamina", 100)) <= 20, state.get("parcel_box"), show_forecast, check_required]
 	var next_signature := JSON.stringify(structural)
 	if signature != next_signature:
@@ -342,6 +401,12 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	if board != null:
 		update_grid()
 		board.interactive = not locked and (phase() == "setup" or state.get("pack_started", false))
+	update_placement_visibility()
+	if details_dialog.visible:
+		render_details()
+	if phase() == "settlement" and not settlement_shown and not check_required:
+		settlement_shown = true
+		open_details.call_deferred("settlement")
 	fit.call_deferred()
 
 func render_body() -> void:
@@ -352,6 +417,9 @@ func render_body() -> void:
 		last_cursor = board.cursor
 	for child in content.get_children():
 		content.remove_child(child)
+		child.queue_free()
+	for child in camp_menu.get_children():
+		camp_menu.remove_child(child)
 		child.queue_free()
 	for child in packing_footer.get_children():
 		packing_footer.remove_child(child)
@@ -418,8 +486,9 @@ func render_body() -> void:
 				if upgraded: subtitle = "✓ 교체 완료"
 				var can_buy: bool = not owned and not waiting and int(state.money) >= int(item.price)
 				var purchase := button(items, item_name(item.id) + "\n" + subtitle,
-					"upgrade_gear" if can_upgrade else "buy_item", item.id,
-					can_buy or (can_upgrade and int(state.money) >= upgrade_price))
+					"", "", can_buy or (can_upgrade and int(state.money) >= upgrade_price))
+				var price := upgrade_price if can_upgrade else int(item.price)
+				purchase.pressed.connect(confirm_equipment.bind(str(item.id), price, can_upgrade))
 				purchase.icon = Assets.item_texture(item.id, upgraded or can_upgrade)
 				purchase.expand_icon = true
 				purchase.add_theme_constant_override("icon_max_width", 44)
@@ -458,32 +527,21 @@ func render_body() -> void:
 			build_field_3d()
 		"free":
 			if not Assets.suitable(state):
-				note("지금 날씨에 옷이 맞지 않아 체력이 더 빨리 줄어요.", 1)
+				note("옷이 날씨에 맞지 않아요.", 1)
 			if int(state.stamina) <= 20:
-				note("체력이 얼마 남지 않았어요. 먹거나 쉬고, 토요일에는 잠을 자요.", 1)
-			content.add_child(label("캠프에서 잠시 쉬어가요."))
-			var activities := GridContainer.new()
-			activities.columns = 2
-			activities.add_theme_constant_override("h_separation", 8)
-			activities.add_theme_constant_override("v_separation", 8)
-			content.add_child(activities)
-			button(activities, "배치 편집", "edit_camp")
+				note("체력이 얼마 남지 않았어요.", 1)
+			camp_button("배치", "edit_camp")
 			var can_cook: bool = state.meal_owned and state.cargo.has("meal") and state.field.has("stove")
-			button(activities, "식사 준비" if state.get("cooked",false) else "라면 끓이기", "cook_begin", "", can_cook)
-			if not can_cook and state.meal_owned:
-				content.add_child(label("요리하려면 재료를 싣고 버너를 설치해야 해요."))
-			var admire := button(activities, "풍경 감상", "", "")
-			admire.pressed.connect(begin_scenery)
+			var cook_button := camp_button("요리", "cook_begin", can_cook)
+			cook_button.tooltip_text = "재료와 설치한 버너가 필요해요." if not can_cook else "요리 시작"
+			scenery_toggle = camp_button("감상", "")
+			scenery_toggle.pressed.connect(func():
+				if viewing_scenery: end_scenery()
+				else: begin_scenery())
 			if int(state.camp_day) == 0:
-				button(activities, "잠들기  →", "sleep", "", true, true)
+				camp_button("잠자기", "sleep", true, true)
 			else:
-				button(activities, "귀가 준비  →", "leave_camp", "", true, true)
-			var clothes := HBoxContainer.new()
-			content.add_child(clothes)
-			for option in [["auto", "자동"], ["basic", "캠핑복"], ["rain", "방수 겉옷"]]:
-				var wearing: bool = state.get("outfit_auto", false) if option[0] == "auto" else not state.get("outfit_auto", false) and state.outfit == option[0]
-				var carried: bool = not state.get("weather_cargo", false) or state.cargo.has("rainwear")
-				button(clothes, ("✓ " if wearing else "") + option[1], "set_clothes", option[0], not wearing and (option[0] != "rain" or carried))
+				camp_button("귀가", "leave_camp", true, true)
 		"cooking":
 			content.add_child(label("버너 앞에서 라면을 끓여요.\n%d / 3 단계" % int(state.cooking)))
 			var illustration := TextureRect.new()
@@ -501,31 +559,102 @@ func render_body() -> void:
 			button(content, "푹 자고 일요일 맞기", "sleep", "", true, true)
 		"teardown":
 			content.add_child(label("설치한 장비를 하나씩 철거해요. 체력이 없어도 정리는 할 수 있어요."))
-			for id in state.field:
-				button(content, item_name(id) + " 철거하기", "take_down", id)
+			var field_items: Array = state.field.keys()
+			if field_items.has("sleeping_bag"):
+				field_items.erase("sleeping_bag")
+				field_items.push_front("sleeping_bag")
+			for id in field_items:
+				var blocked: bool = id == "tent" and field_items.has("sleeping_bag") and field_editor != null and field_editor.bag_inside_tent()
+				button(content, "침낭을 먼저 접어 주세요" if blocked else item_name(id) + " 철거하기", "take_down", id, not blocked)
 			button(content, "귀가 짐 싸기  →", "teardown_done", "", state.field.is_empty(), true)
 		"settlement":
-			content.add_child(label("이번 주 수입  +%d원\n준비에 쓴 돈  %d원\n현재 소지금  %d원" % [int(state.week_income), int(state.week_spent), int(state.money)]))
-			content.add_child(label("집에 보관할 장비\n" + names(state.owned)))
-			content.add_child(label("남은 라면: 1끼" if state.meal_owned else "남은 음식 없음"))
-			show_parcels()
-			button(content, "저장하고 다음 주 시작  →", "next_week", "", true, true)
+			camp_button("정산", "").pressed.connect(open_details.bind("settlement"))
+			camp_button("택배함", "").pressed.connect(open_details.bind("parcels"))
+			camp_button("다음 주", "next_week", true, true)
+	update_placement_visibility()
 	if restore_grid_focus and board != null:
 		restore_board_focus.call_deferred()
 	fit.call_deferred()
 
+func camp_button(caption: String, command: String, enabled := true, primary := false) -> Button:
+	var node := button(camp_menu, caption, command, "", enabled, primary)
+	node.custom_minimum_size = Vector2(0, 48)
+	node.autowrap_mode = TextServer.AUTOWRAP_OFF
+	return node
+
+func refresh_clothes() -> void:
+	var popup := clothes_menu
+	popup.clear()
+	for index in 3:
+		popup.add_radio_check_item(["자동 착용", "캠핑복", "방수 겉옷"][index], index)
+		var active: String = "auto" if state.get("outfit_auto", false) else state.get("outfit", "basic")
+		popup.set_item_checked(index, ["auto", "basic", "rain"][index] == active)
+	popup.set_item_disabled(2, state.get("weather_cargo", false) and not state.cargo.has("rainwear"))
+
+func refresh_options() -> void:
+	var popup := options.get_popup()
+	popup.clear()
+	popup.add_item("예보", 0)
+	popup.add_check_item("효과", 1)
+	popup.set_item_checked(popup.get_item_index(1), effects_button.button_pressed)
+	popup.add_check_item("밤 미리보기", 2)
+	popup.set_item_checked(popup.get_item_index(2), night_button.button_pressed)
+	if phase() == "setup": popup.add_item(tools_button.text, 3)
+	if phase() == "free":
+		refresh_clothes()
+		popup.add_submenu_node_item("옷 갈아입기", clothes_menu, 6)
+	popup.add_item("집 택배함 · %d개" % state.get("parcel_box", []).size(), 4)
+	if OS.has_feature("web"): popup.add_item("계정", 5)
+
+func camp_option(id: int) -> void:
+	match id:
+		0: forecast_button.pressed.emit()
+		1: effects_button.button_pressed = not effects_button.button_pressed
+		2: night_button.button_pressed = not night_button.button_pressed
+		3: tools_button.pressed.emit()
+		4: open_details.call_deferred("parcels")
+		5: account_requested.emit()
+
 func show_parcels() -> void:
-	var parcels: Array = state.get("parcel_box", [])
-	var fee := int(state.get("parcel_fee", 5))
-	content.add_child(label("집 택배함"))
-	if parcels.is_empty():
-		content.add_child(label("받을 장비가 없어요."))
-		return
-	content.add_child(label("착불 장비 %d개 · 개당 %d원" % [parcels.size(), fee]))
-	for id in parcels:
-		button(content, "%s 받기 · %d원" % [item_name(id), fee], "claim_parcel", id, int(state.money) >= fee)
-	if int(state.money) < fee:
-		content.add_child(label("소지금이 부족해요. 장비는 택배함에 보관돼요."))
+	var open := button(content, "집 택배함 · %d개" % state.get("parcel_box", []).size(), "")
+	open.pressed.connect(open_details.bind("parcels"))
+
+func open_details(mode: String) -> void:
+	if not is_inside_tree() or (mode == "settlement" and phase() != "settlement"): return
+	details_mode = mode
+	render_details()
+	if not details_dialog.visible:
+		details_dialog.popup_centered(Vector2i(mini(390, int(size.x) - 24), 0))
+
+func render_details() -> void:
+	for child in details.get_children():
+		if child is Button: action_buttons.erase(child)
+		details.remove_child(child)
+		child.queue_free()
+	if details_mode == "settlement":
+		details_dialog.title = "이번 주 정산"
+		var metrics := HBoxContainer.new()
+		details.add_child(metrics)
+		for metric in [["↑ 수입", "+%d원" % int(state.week_income)], ["↓ 지출", "−%d원" % int(state.week_spent)], ["● 잔액", "%d원" % int(state.money)]]:
+			var value := label(metric[0] + "\n" + metric[1])
+			value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			metrics.add_child(value)
+		var next := button(details, "다음 주 시작", "next_week", "", true, true)
+		next.custom_minimum_size.x = 0
+		var parcels := button(details, "택배함 · %d개" % state.get("parcel_box", []).size(), "")
+		parcels.pressed.connect(open_details.bind("parcels"))
+	else:
+		details_dialog.title = "집 택배함"
+		var parcels: Array = state.get("parcel_box", [])
+		var fee := int(state.get("parcel_fee", 5))
+		if parcels.is_empty(): details.add_child(label("받을 장비가 없어요."))
+		for id in parcels:
+			button(details, "%s 받기 · %d원" % [item_name(id), fee], "claim_parcel", id, int(state.money) >= fee)
+		if not parcels.is_empty() and int(state.money) < fee:
+			details.add_child(label("소지금이 부족해요."))
+		if phase() == "settlement":
+			button(details, "정산으로", "").pressed.connect(open_details.bind("settlement"))
 
 func restore_board_focus() -> void:
 	if is_instance_valid(board) and board.is_inside_tree(): board.grab_focus()
@@ -571,9 +700,13 @@ func use_field_editor(editor) -> void:
 func update_placement_visibility() -> void:
 	if dock == null or placement_bar == null: return
 	var placing := phase() == "setup"
-	dock.visible = (not placing or not tools_hidden or show_forecast) and not viewing_scenery
+	var compact_dock := phase() in ["free", "settlement"]
+	var has_notice := phase() == "free" and (not Assets.suitable(state) or int(state.get("stamina", 100)) <= 20 or (is_instance_valid(status) and status.visible))
+	dock.visible = show_forecast or (not viewing_scenery and (check_required or (not compact_dock and (not placing or not tools_hidden)) or has_notice))
+	camp_menu.visible = compact_dock and not show_forecast and not check_required
+	if is_instance_valid(scenery_toggle):
+		scenery_toggle.text = "감상 종료" if viewing_scenery else "감상"
 	if scenery_hint != null: scenery_hint.visible=viewing_scenery
-	if scenery_exit != null: scenery_exit.visible=viewing_scenery
 	placement_commit.visible = placing and preview_dirty
 	placement_cancel.visible = placing and (preview_dirty or installing)
 	placement_bar.visible = placing and tools_hidden and not show_forecast
@@ -729,7 +862,8 @@ func build_field_3d() -> void:
 		field_editor.configure(state,selected_item,field_position,field_rotation)
 	content.add_child(label("물건을 끌어 위치를 정하고 확정하면 캐릭터가 와서 설치해요. 취소하면 이전 상태로 돌아가요."))
 	content.add_child(label("선택한 장비 · " + item_name(selected_item)))
-	button(content, "선택한 장비를 차로", "remove_item", selected_item, state.field.has(selected_item))
+	var tent_has_bag: bool = selected_item == "tent" and field_editor != null and field_editor.bag_inside_tent()
+	button(content, "침낭을 먼저 접어 주세요" if tent_has_bag else "선택한 장비를 차로", "remove_item", selected_item, state.field.has(selected_item) and not tent_has_bag)
 
 func build_grid() -> void:
 	var field := phase() == "setup"
@@ -871,37 +1005,37 @@ func rotate_packing_item() -> void:
 func fit() -> void:
 	if dock == null:
 		return
-	preload("res://ui/ui_metrics.gd").apply(self, size.x <= 960)
-	if size.x <= 960 and info.get_parent() == toolbar:
-		info.reparent(header)
-		header.move_child(info, 0)
-	elif size.x > 960 and info.get_parent() == header:
-		info.reparent(toolbar)
-		toolbar.move_child(info, 0)
-	if not state.is_empty():
-		money.get_node("Value").text = ("%d원" if size.x < 600 else "소지금 · %d원") % int(state.get("money", 0))
-		stamina.get_node("Value").text = ("체력 %d/100" if size.x < 600 else "체력 · %d / 100") % int(state.get("stamina", 0))
+	preload("res://ui/ui_metrics.gd").apply(dock, size.x <= 960)
+	for node in [info, money.get_node("Value"), stamina.get_node("Value")]:
+		node.add_theme_font_size_override("font_size", 15 if size.x < 400 else 18)
+		node.add_theme_color_override("font_color", Color("fff2d9"))
+		node.add_theme_color_override("font_outline_color", Color("192922"))
+		node.add_theme_constant_override("outline_size", 2)
 	var margin := 12.0 if size.x < 760 else 28.0
 	placement_bar.size = Vector2(minf(460, size.x - margin * 2), 0)
 	placement_bar.position = Vector2((size.x - placement_bar.size.x) / 2, size.y - placement_bar.size.y - margin)
 	update_placement_action_position()
-	header.position = Vector2(margin, margin)
-	header.size = Vector2(size.x - margin * 2, 0)
+	status_bar.position = Vector2(margin, margin)
+	status_bar.size = Vector2(size.x - margin * 2, 42)
+	var menu_width := minf(560, size.x - margin * 2)
+	camp_menu.size = Vector2(menu_width, 48)
+	camp_menu.position = Vector2((size.x - menu_width) * .5, size.y - camp_menu.size.y - margin)
+	for item in camp_menu.get_children():
+		item.add_theme_font_size_override("font_size", 16 if size.x < 430 else 19)
 	if scenery_hint != null:
-		scenery_hint.position=Vector2(margin,size.y-146)
-		scenery_hint.size=Vector2(size.x-margin*2,64)
-	if scenery_exit != null:
-		scenery_exit.position=Vector2(size.x-132-margin,size.y-60-margin)
-		scenery_exit.size=Vector2(132,52)
+		scenery_hint.position=Vector2(margin,camp_menu.position.y-42)
+		scenery_hint.size=Vector2(size.x-margin*2,40)
 	var width := minf(700, size.x - margin * 2)
 	dock.custom_minimum_size.x = width
-	var available := maxf(160, size.y - header.position.y - header.size.y - margin * 2 - 16)
+	var available := maxf(160, size.y - status_bar.position.y - status_bar.size.y - margin * 2 - 16)
 	var desired: float = content.get_combined_minimum_size().y + (packing_footer.get_combined_minimum_size().y+8 if packing_footer.visible else 0) + 40
-	dock.size = Vector2(width, minf(available, maxf(120, desired)))
-	dock.position = Vector2(floorf((size.x - width) / 2), size.y - dock.size.y - margin)
+	var compact_notice := phase() == "free" and not show_forecast and not check_required
+	dock.size = Vector2(width, minf(available, desired if compact_notice else maxf(120, desired)))
+	var dock_bottom := camp_menu.position.y - 6 if compact_notice else size.y - margin
+	dock.position = Vector2(floorf((size.x - width) / 2), dock_bottom - dock.size.y)
 
 func _process(delta: float) -> void:
-	if state.is_empty():
+	if state.is_empty() or is_instance_valid(sleep_scene):
 		return
 	var active := not bool(JavaScriptBridge.eval("document.hidden")) if OS.has_feature("web") else DisplayServer.window_is_focused()
 	if not active or check_required:

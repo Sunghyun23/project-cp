@@ -30,6 +30,7 @@ var pending := false
 var office_button: Button
 var office_screen
 var mailbox_button: Button
+var mailbox_dialog: AcceptDialog
 var mailbox_scroll: ScrollContainer
 var mailbox_items: VBoxContainer
 
@@ -123,14 +124,18 @@ func _ready() -> void:
 	mailbox_button = Action.instantiate()
 	mailbox_button.text = "집 택배함"
 	mailbox_button.pressed.connect(func():
-		mailbox_scroll.visible = not mailbox_scroll.visible
-		fit.call_deferred())
+		mailbox_dialog.popup_centered(Vector2i(mini(390, int(size.x) - 24), 0)))
 	column.add_child(mailbox_button)
+	mailbox_dialog = AcceptDialog.new()
+	mailbox_dialog.title = "집 택배함"
+	mailbox_dialog.ok_button_text = "닫기"
+	mailbox_dialog.exclusive = true
+	mailbox_dialog.theme = preload("res://ui/theme/camping.tres")
+	add_child(mailbox_dialog)
 	mailbox_scroll = ScrollContainer.new()
-	mailbox_scroll.custom_minimum_size.y = 128
+	mailbox_scroll.custom_minimum_size = Vector2(260, 180)
 	mailbox_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	mailbox_scroll.hide()
-	column.add_child(mailbox_scroll)
+	mailbox_dialog.add_child(mailbox_scroll)
 	mailbox_items = VBoxContainer.new()
 	mailbox_items.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mailbox_scroll.add_child(mailbox_items)
@@ -168,6 +173,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, check_require
 	for button in [work_button,office_button,reload_button,account_button,mailbox_button]:
 		button.focus_mode=Control.FOCUS_NONE if office_screen.visible else Control.FOCUS_ALL
 	if office_screen.visible:
+		mailbox_dialog.hide()
 		office_screen.apply_state(value,saving,message,check_required)
 		if not was_open: office_screen.focus_action.call_deferred()
 	elif was_open:

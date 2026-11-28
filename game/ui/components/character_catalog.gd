@@ -33,11 +33,12 @@ static func frames(id: String, outfit: String = "basic") -> SpriteFrames:
 	var actions: Texture2D = ACTIONS[(id if id in IDS else "female")+"_"+("rain" if outfit == "rain" else "basic")]
 	var action_cell := Vector2(actions.get_size()) / Vector2(4,2)
 	for column in range(4):
+		# Chair rotation starts at front-left. The pose atlas starts at front-right.
 		var animation := "sit_%d"%(column*90)
 		result.add_animation(animation)
 		var atlas := AtlasTexture.new()
 		atlas.atlas=actions
-		atlas.region=Rect2(Vector2(column,0)*action_cell,action_cell)
+		atlas.region=Rect2(Vector2(3-column,0)*action_cell,action_cell)
 		result.add_frame(animation,atlas)
 	result.add_animation("install")
 	result.set_animation_speed("install",5.0)

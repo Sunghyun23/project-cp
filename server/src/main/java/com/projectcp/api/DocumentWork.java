@@ -1,6 +1,7 @@
 package com.projectcp.api;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /** 비교 가능한 원본/접수 서류를 생성하고 처리 진척을 서버에서 검증한다. */
 final class DocumentWork {
@@ -37,7 +38,12 @@ final class DocumentWork {
         int due=10+Math.floorMod(week+day+index,14);
         var original=Map.<String,Object>of("supplier",vendors[vendor],"amount",amount,"due",due);
         var submitted=new LinkedHashMap<>(original);
-        switch(Math.floorMod(week+day*2+index,4)) {
+        // Keep an already-open shift's papers stable across an update or reload.
+        Object seed=task(state).get("case_seed");
+        int difference=Math.floorMod(week+day*2+index,4);
+        if(seed instanceof Number number)
+            difference=new Random(number.longValue()+index*0x9E3779B97F4A7C15L).nextInt(4);
+        switch(difference) {
             case 1 -> submitted.put("supplier",vendors[(vendor+1)%4]);
             case 2 -> submitted.put("amount",amount+1500);
             case 3 -> submitted.put("due",due+1);
@@ -47,7 +53,7 @@ final class DocumentWork {
     }
     static void start(Map<String,Object> state) {
         if(!state.containsKey("office_task"))state.put("office_task",new LinkedHashMap<>(Map.of(
-            "week",state.get("week"),"day",state.get("day"),"index",0,"mistakes",0,"earned",0,"remaining_ms",SHIFT_MS,"active",true,"feedback","거래처·금액·납기일을 대조해 주세요.")));
+            "week",state.get("week"),"day",state.get("day"),"index",0,"mistakes",0,"earned",0,"remaining_ms",SHIFT_MS,"active",true,"case_seed",ThreadLocalRandom.current().nextLong(),"feedback","거래처·금액·납기일을 대조해 주세요.")));
         task(state).put("active",true);
     }
     @SuppressWarnings("unchecked") static void review(Map<String,Object> state,String choice,Map<String,Object> body) {
@@ -65,8 +71,11 @@ final class DocumentWork {
         int award=correct?2:1;
         task.put("earned",pay(task)+award);
         task.put("index",index+1);
-        if(!correct)MvpRules.add(task,"mistakes",1);
-        task.put("feedback",correct?"정확히 처리했어요 · +2원":"판정이 달랐어요 · +1원");
+        if(!correct) {
+            MvpRules.add(task,"mistakes",1);
+            task.put("remaining_ms",Math.max(0,remaining(task)-2_000));
+        }
+        task.put("feedback",correct?"정확히 처리했어요 · +2원":"판정이 달랐어요 · +1원 · 시간 −2초");
     }
 
     static Map<String,Object> enrich(Map<String,Object> state) {

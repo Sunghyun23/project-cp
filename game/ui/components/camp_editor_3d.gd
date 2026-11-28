@@ -306,6 +306,12 @@ func configure(value: Dictionary, id: String = "", point: Vector3 = Vector3(4,0,
 				index += 1
 	if selected_node != null:
 		selected_node.position = Vector3(proposed.x-origin_x,proposed.y,proposed.z-origin_z)
+	for node in items_root.get_children():
+		if node.get_child(1).get_meta("item") == "tent" and field.has("tent"):
+			var sprite: Sprite3D = node.get_child(0)
+			var transparent := not readonly and selected == "sleeping_bag"
+			sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED if transparent else SpriteBase3D.ALPHA_CUT_DISCARD
+			sprite.modulate.a = .38 if transparent else 1.0
 	gizmo.visible = false
 	update_support_surfaces()
 	update_feedback()
@@ -465,10 +471,24 @@ func pick_item(point: Vector2) -> String:
 		var distance := point.distance_to(center)
 		if not pixel_hit and distance > 28: continue
 		var score := camera.global_position.distance_to(node.global_position) if pixel_hit else 1000+distance
+		if id == "sleeping_bag" and pixel_hit and bag_inside_tent(): return id
 		if score < best_score:
 			best = id
 			best_score = score
 	return best
+
+func tent_contains_bag(point: Vector3, bag: Vector3) -> bool:
+	if not field.has("tent") or point.y > .02: return false
+	var tent: Dictionary = field.tent
+	var footprint := dimensions("tent")
+	return absf(point.x - float(tent.x)) + bag.x / 2 <= footprint.x / 2 + .01 \
+		and absf(point.z - float(tent.z)) + bag.z / 2 <= footprint.z / 2 + .01
+
+func bag_inside_tent() -> bool:
+	if not field.has("sleeping_bag"): return false
+	var bag: Dictionary = field.sleeping_bag
+	return tent_contains_bag(Vector3(float(bag.x), float(bag.y), float(bag.z)),
+		oriented_dimensions("sleeping_bag", rotation_of(bag)))
 
 func validation_reason(id: String, point: Vector3) -> String:
 	if id.is_empty(): return "장비를 선택해 주세요"
@@ -490,8 +510,11 @@ func validation_reason(id: String, point: Vector3) -> String:
 	if support_info(id).get("stackable",false) and field.has(id):
 		for other in field:
 			if other != id and float(field[other].y) > .02: return "받침 위 물건을 먼저 내려 주세요"
+	if id == "sleeping_bag" and not tent_contains_bag(point, bounds):
+		return "침낭은 설치한 텐트 안에 펼쳐 주세요"
+	if id == "tent" and bag_inside_tent(): return "침낭을 먼저 접어 주세요"
 	for other in field:
-		if other == id: continue
+		if other == id or (id == "sleeping_bag" and other == "tent"): continue
 		var p: Dictionary = field[other]
 		var q := oriented_dimensions(other,rotation_of(p))
 		if absf(point.x-float(p.x)) < (bounds.x+q.x)/2-.02 and absf(point.z-float(p.z)) < (bounds.z+q.z)/2-.02 and point.y < float(p.y)+q.y-.02 and point.y+bounds.y > float(p.y)+.02:
@@ -547,6 +570,13 @@ func move_drag(point: Vector2) -> void:
 	var value := Vector3(snappedf(hit.x+origin_x,float(placement.step)),float(placement.ground_y),snappedf(hit.z+origin_z,float(placement.step)))
 	value.x = snappedf(value.x,float(placement.step))
 	value.z = snappedf(value.z,float(placement.step))
+	if selected == "sleeping_bag" and field.has("tent"):
+		var tent: Dictionary = field.tent
+		var tent_bounds := dimensions("tent")
+		if absf(hit.x + origin_x - float(tent.x)) <= tent_bounds.x / 2 and absf(hit.z + origin_z - float(tent.z)) <= tent_bounds.z / 2:
+			var room := (tent_bounds - bounds) / 2
+			value.x = clampf(value.x, float(tent.x) - room.x, float(tent.x) + room.x)
+			value.z = clampf(value.z, float(tent.z) - room.z, float(tent.z) + room.z)
 	for support in field:
 		if not support_info(selected).get("can_place_on_table", false) or support == selected or not support_info(support).get("stackable",false): continue
 		var surface: Dictionary=field[support]

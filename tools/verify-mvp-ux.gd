@@ -19,16 +19,22 @@ func run() -> void:
 	free.rested=false
 	ui.apply_state(free,false,"",false,false)
 	for i in range(6): await process_frame
+	for dimensions in [Vector2i(320, 720), Vector2i(390, 844), Vector2i(1280, 900)]:
+		root.size = dimensions
+		for i in range(6): await process_frame
+		var bounds := Rect2(Vector2.ZERO, Vector2(dimensions))
+		assert(bounds.encloses(ui.status_bar.get_global_rect()))
+		assert(bounds.encloses(ui.camp_menu.get_global_rect()))
+		assert(ui.camp_menu.get_child_count() == 4)
+	root.size = Vector2i(390, 844)
 	ui.begin_scenery()
 	assert(ui.viewing_scenery and not ui.dock.visible and ui.scenery_hint.visible)
 	assert(sent.back().command=="rest")
 	free.rested=true
 	ui.apply_state(free,false,"",false,false)
 	assert(not ui.dock.visible)
-	var toggle_at: Vector2=ui.night_button.get_global_rect().get_center()
-	for down in [true,false]:
-		var click:=InputEventMouseButton.new();click.button_index=MOUSE_BUTTON_LEFT;click.pressed=down;click.position=toggle_at;click.global_position=toggle_at;Input.parse_input_event(click)
-		await process_frame
+	ui.refresh_options()
+	ui.options.get_popup().id_pressed.emit(2)
 	assert(ui.viewing_scenery and not ui.dock.visible and ui.night_button.button_pressed)
 	ui.night_button.button_pressed=false
 	for kind in ["touch","key","pad"]:
@@ -43,8 +49,8 @@ func run() -> void:
 		await process_frame
 		if kind == "touch":
 			assert(ui.viewing_scenery)
-			ui.scenery_exit.pressed.emit()
-		assert(not ui.viewing_scenery and ui.dock.visible)
+			ui.scenery_toggle.pressed.emit()
+		assert(not ui.viewing_scenery and ui.camp_menu.visible)
 		event.pressed=false
 		Input.parse_input_event(event)
 		await process_frame
