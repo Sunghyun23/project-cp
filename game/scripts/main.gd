@@ -281,7 +281,7 @@ func _draw() -> void:
 		var pose: String="idle" if waiting_outside else actor.animation()
 		camp_world.update_camper(camper_sprite.sprite_frames,camp_world.screen_point(world_foot),pose == "walk",actor.facing_left if actor.mode != "sit" else false,pose,.1 if actor.mode == "sit" else 0.0,actor.seat_angle if actor.mode == "sit" else -1)
 		if mvp_screen != null and mvp_screen.viewing_scenery:
-			mvp_screen.scenery_hint.text=actor_message if not actor_message.is_empty() else "바닥: 이동 · 의자: 앉기\nEsc / B: 종료" if size.x<600 else "바닥/방향키: 이동 · 의자/확인: 앉기 · Esc/B: 종료"
+			mvp_screen.scenery_hint.text=actor_message if not actor_message.is_empty() else "터치: 이동 · 의자에 앉기" if size.x < 760 or OS.has_feature("mobile") or DisplayServer.is_touchscreen_available() else "바닥/방향키: 이동 · 의자/확인: 앉기 · Esc/B: 종료"
 		camp_world.effects.night=night
 	camper_sprite.position=foot
 	camper_sprite.scale=Vector2.ONE*sprite_height/(cell.y*.9)

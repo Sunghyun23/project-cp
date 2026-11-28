@@ -2,6 +2,9 @@ extends RefCounted
 
 const FIELD_FURNITURE = preload("res://assets/pixel/field-furniture.png")
 const STARTER_FURNITURE = preload("res://assets/pixel/starter-furniture.png")
+const WORN_TENT = preload("res://assets/pixel/items/worn_tent/directions.png")
+const UPGRADED_SLEEPING_BAG = preload("res://assets/pixel/items/upgraded_sleeping_bag/directions.png")
+static var reference_gear: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/pixel/items/reference-gear.json"))
 const STARTER = preload("res://assets/pixel/starter-gear.png")
 const PROPS = preload("res://assets/pixel/camping-props.png")
 const PINE = preload("res://assets/pixel/campsite-pine-terrain.png")
@@ -21,7 +24,23 @@ static func starter_texture(row: int, frame: int) -> Texture2D:
 	atlas.region = Rect2(frame * 160, row * 160, 160, 160)
 	return atlas
 
+static func reference_gear_key(id: String, upgraded: bool) -> String:
+	if id == "tent" and not upgraded: return "worn_tent"
+	if id == "sleeping_bag" and upgraded: return "upgraded_sleeping_bag"
+	return ""
+
+static func reference_texture(key: String, angle: int = 0) -> Texture2D:
+	var source: Texture2D=WORN_TENT if key == "worn_tent" else UPGRADED_SLEEPING_BAG
+	var cell := Vector2(source.get_size())/2.0
+	var frame := posmod(angle/90,4)
+	var texture := AtlasTexture.new()
+	texture.atlas=source
+	texture.region=Rect2(Vector2(frame%2,frame/2)*cell,cell)
+	return texture
+
 static func item_texture(id: String, upgraded: bool = false) -> Texture2D:
+	var reference := reference_gear_key(id,upgraded)
+	if not reference.is_empty(): return reference_texture(reference)
 	if id == "sleeping_bag": return starter_texture(4, 1 if upgraded else 0)
 	if not upgraded:
 		if id in ["table", "chair"]: return field_texture(id)
@@ -53,6 +72,8 @@ static func uses_starter_atlas(id: String, upgraded: bool) -> bool:
 	return id == "sleeping_bag" or (not upgraded and id in ["tent", "stove", "lantern"])
 
 static func field_texture(id: String, angle: int = 0, upgraded: bool = false) -> Texture2D:
+	var reference := reference_gear_key(id,upgraded)
+	if not reference.is_empty(): return reference_texture(reference,angle)
 	if uses_starter_atlas(id, upgraded):
 		var canvas_row := 0 if id == "tent" else 1 if id == "stove" else 5 if id == "lantern" else 3 if upgraded else 2
 		return starter_texture(canvas_row, posmod(angle / 90, 4))
@@ -70,12 +91,19 @@ static func field_texture(id: String, angle: int = 0, upgraded: bool = false) ->
 	return atlas
 
 static func field_pivot(id: String, angle: int, upgraded: bool = false) -> Vector2:
+	var reference := reference_gear_key(id,upgraded)
+	if not reference.is_empty():
+		var meta: Dictionary=reference_gear[reference]
+		var pivot: Array=meta.pivot_px_by_angle[str(posmod(angle,360))]
+		return Vector2(float(pivot[0])/float(meta.cell_size_px[0]),float(pivot[1])/float(meta.cell_size_px[1]))
 	if uses_starter_atlas(id, upgraded): return Vector2(.5, .8)
 	if id in ["table", "chair"]: return Vector2(.5, .75)
 	var point: Array = directional_meta.items[id].frames[(angle/90)%4].pivot_px
 	return Vector2(float(point[0])/directional_meta.cell_size_px[0],float(point[1])/directional_meta.cell_size_px[1])
 
 static func field_sprite_width(id: String, upgraded: bool = false) -> float:
+	var reference := reference_gear_key(id,upgraded)
+	if not reference.is_empty(): return float(reference_gear[reference].sprite_world_width)
 	if uses_starter_atlas(id, upgraded):
 		return 3.65 if id == "tent" else 2.4 if id == "stove" else 1.30 if id == "lantern" else 160.0 / 52.0
 	if id in ["table", "chair"]: return 256.0 / 47.0
@@ -83,3 +111,7 @@ static func field_sprite_width(id: String, upgraded: bool = false) -> float:
 
 static func seated_animation(chair_angle: int) -> String:
 	return str(directional_meta.items.chair.interaction.character_animation_by_angle[str(posmod(chair_angle,360))])
+
+static func field_sprite_scale_y(id: String, upgraded: bool = false) -> float:
+	var reference := reference_gear_key(id,upgraded)
+	return float(reference_gear[reference].get("sprite_scale_y",1.0)) if not reference.is_empty() else 1.0

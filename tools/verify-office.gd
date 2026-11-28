@@ -22,6 +22,7 @@ func run() -> void:
 	var before_mark := sent.size()
 	desk.invoice_fields.amount.pressed.emit()
 	assert(sent.size()==before_mark+1 and sent.back().choice=="revise" and sent.back().extra.field=="amount")
+	assert(desk.stamp_mark.visible and desk.stamp_mark.text == "보완 요청")
 	var midpoint: Vector2 = desk.stamp_mark.position+desk.stamp_mark.size/2
 	assert(midpoint.is_equal_approx(desk.papers.get_global_rect().get_center()))
 	for touch in [false,true]:
@@ -50,12 +51,12 @@ func run() -> void:
 	state.item_catalog=[{"id":"tent","name":"낡은 텐트"}]
 	ui.apply_state(state,false,"",false)
 	ui.mailbox_button.pressed.emit()
-	assert(ui.mailbox_scroll.visible)
+	assert(ui.mailbox_dialog.visible)
 	var parcel_button: Button=ui.mailbox_items.get_child(0)
 	assert(parcel_button.text.contains("5원") and not parcel_button.disabled)
 	parcel_button.pressed.emit()
 	assert(sent.back().command=="claim_parcel" and sent.back().choice=="tent")
-	ui.mailbox_button.pressed.emit()
+	ui.mailbox_dialog.hide()
 
 	state.office_task.active=true;ui.apply_state(state,false,"",false)
 	for dimensions in [Vector2i(320,720),Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900),Vector2i(844,390)]:

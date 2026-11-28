@@ -92,9 +92,15 @@ func approach(id: String, point: Vector3, angle: int, intent: String) -> bool:
 	var shortest := INF
 	# Stand outside the item's footprint, including when it is on a table.
 	var extent := Vector2(bounds.x/2+.45,bounds.z/2+.45)
+	var approach_center := point
+	if id == "sleeping_bag" and state.get("field", {}).has("tent"):
+		var tent: Dictionary = state.field.tent
+		approach_center = Vector3(float(tent.x), 0, float(tent.z))
+		var tent_bounds := Editor.dimensions("tent")
+		extent = Vector2(tent_bounds.x, tent_bounds.z) / 2 + Vector2.ONE * .45
 	if point.y > .1: extent=Vector2(1.6,1.25)
 	for offset in [Vector3(extent.x,0,0),Vector3(-extent.x,0,0),Vector3(0,0,extent.y),Vector3(0,0,-extent.y)]:
-		var candidate: Vector3=point+offset;candidate.y=0
+		var candidate: Vector3=approach_center+offset;candidate.y=0
 		if candidate.x<.25 or candidate.x>width-.25 or candidate.z<.25 or candidate.z>depth-.25: continue
 		if grid.is_point_solid(cell(candidate)): continue
 		var next := route(candidate)

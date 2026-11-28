@@ -24,6 +24,7 @@ func fixture() -> Dictionary:
 
 func run() -> void:
 	create_timer(90).timeout.connect(func(): printerr("FAIL camp actions timeout");quit(1))
+	Input.use_accumulated_input=false
 	root.size=Vector2i(820,920)
 	game=OfflineMain.new()
 	game.session_save_path="/tmp/cp-actions-no-session.cfg"
@@ -34,9 +35,31 @@ func run() -> void:
 	ui=game.mvp_screen;world=game.camp_world
 	ui.set_process(false)
 	await frames()
+	assert(world.items_root.get_child_count()==0 and ui.gear_cards.get_child_count()==3)
+	for dimensions in [Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900)]:
+		root.size=dimensions;await frames()
+		assert(ui.gear_tray.get_global_rect().position.x>=0 and ui.gear_tray.get_global_rect().end.x<=dimensions.x)
+		assert(ui.gear_tray.get_global_rect().end.y<=dimensions.y)
+		root.get_texture().get_image().save_png("/tmp/cp-gear-tray-%dx%d.png"%[dimensions.x,dimensions.y])
+	root.size=Vector2i(820,920);await frames()
+	var card=ui.gear_cards.get_child(0)
+	var start: Vector2=card.get_global_rect().get_center()
+	var press:=InputEventMouseButton.new();press.button_index=MOUSE_BUTTON_LEFT;press.position=start;press.pressed=true;Input.parse_input_event(press);await process_frame
+	var motion:=InputEventMouseMotion.new();motion.position=start+Vector2(-20,0);motion.button_mask=MOUSE_BUTTON_MASK_LEFT;Input.parse_input_event(motion);await process_frame
+	press.pressed=false;press.position=motion.position;Input.parse_input_event(press);await process_frame
+	assert(not ui.preview_dirty and not ui.external_drag,"Horizontal tray scrolling must not place gear")
+	card.grab_focus()
+	var confirm:=InputEventKey.new();confirm.keycode=KEY_ENTER;confirm.physical_keycode=KEY_ENTER;confirm.pressed=true;Input.parse_input_event(confirm);await process_frame
+	confirm.pressed=false;Input.parse_input_event(confirm);await process_frame
+	assert(ui.preview_dirty and ui.selected_item=="chair","Keyboard confirmation chooses from the tray")
+	ui.cancel_field()
+
 	await drag("chair",Vector3(3,0,2),false)
 	assert(ui.preview_dirty and ui.placement_commit.visible and ui.placement_cancel.visible)
 	assert(world.selected_node.get_child(0).modulate.a<.3)
+	for item in world.items_root.get_children():
+		var id: String=item.get_child(1).get_meta("item")
+		if id != "chair": assert(not item.visible,"Uninstalled cargo must not obscure the destination")
 	assert(ui.placement_done.disabled and game.requests.is_empty())
 	await frames()
 	root.get_texture().get_image().save_png("/tmp/cp-placement-confirm.png")
@@ -47,6 +70,7 @@ func run() -> void:
 	assert(ui.preview_dirty and ui.field_position.is_equal_approx(Vector3(3,0,2)))
 	ui.placement_cancel.pressed.emit()
 	assert(not ui.preview_dirty and game.state.field.is_empty() and game.requests.is_empty())
+	for item in world.items_root.get_children(): assert(item.visible)
 	await drag("chair",Vector3(3,0,2),true)
 	ui.placement_commit.pressed.emit()
 	assert(ui.installing and not ui.drop_pending and game.requests.is_empty())
@@ -101,7 +125,7 @@ func run() -> void:
 	game.state.phase="free"
 	game._render()
 	ui.begin_scenery()
-	assert(ui.viewing_scenery and not ui.dock.visible and ui.scenery_exit.visible)
+	assert(ui.viewing_scenery and not ui.dock.visible and ui.camp_menu.visible and ui.scenery_toggle.text == "감상 종료")
 	await frames()
 	# Real touch input reaches Main while the scenery view stays open.
 	var at: Vector2=world.screen_point(Vector3(5-world.origin_x,0,4-world.origin_z))
@@ -151,6 +175,9 @@ func run() -> void:
 				await frames()
 				assert(world.camper_3d.animation == preload("res://ui/components/mvp_assets.gd").seated_animation(angle))
 				if id=="female" and outfit=="basic": root.get_texture().get_image().save_png("/tmp/cp-seat-direction-%d.png"%angle)
+				var pose: AtlasTexture=world.camper_3d.sprite_frames.get_frame_texture(world.camper_3d.animation, 0)
+				assert(is_equal_approx(pose.region.position.x / pose.region.size.x, 3 - angle / 90))
+
 				if angle==0 and id=="female" and outfit=="basic":
 					for dimensions in [Vector2i(390,844),Vector2i(820,920),Vector2i(1280,900)]:
 						root.size=dimensions;await frames()
@@ -169,7 +196,65 @@ func run() -> void:
 		assert(not ui.viewing_scenery)
 		event.pressed=false;Input.parse_input_event(event);await process_frame
 		ui.begin_scenery()
-	print("PASS camp actions: mouse/touch preview / confirm / cancel / walk+install / once-only save / failure / rotation / scenery movement / four seat directions / both characters+outfits / phone-fold-PC")
+	ui.viewing_scenery = false
+	game.state.phase = "free"
+	game.state.field.tent = {"x":5, "y":0, "z":4, "rotation_degrees":0}
+	game.state.field.sleeping_bag = {"x":5, "y":0, "z":4, "rotation_degrees":90}
+	game._render()
+	root.size = Vector2i(390, 844)
+	await frames()
+	assert(world.bag_inside_tent())
+	assert(game.actor.install("sleeping_bag", Vector3(5, 0, 4), 90))
+	game.actor.cancel()
+	assert(world.validation_reason("sleeping_bag", Vector3(5, 0, 4)).is_empty())
+	assert(not world.validation_reason("sleeping_bag", Vector3(7, 0, 4)).is_empty())
+	assert(not world.validation_reason("tent", Vector3(6, 0, 4)).is_empty())
+	var before_sleep: int = game.requests.size()
+	ui.act("sleep")
+	assert(is_instance_valid(ui.sleep_scene))
+	ui.sleep_scene.set_process(false)
+	ui.sleep_scene._process(1.8)
+	await frames()
+	root.get_texture().get_image().save_png("/tmp/cp-sleep-phone.png")
+	ui.act("sleep")
+	assert(game.requests.size() == before_sleep)
+	ui.sleep_scene._process(1.0)
+	assert(game.requests.size() == before_sleep + 1 and game.requests.back().command == "sleep")
+
+	game.state.phase = "equipment"
+	game.state.item_catalog = [{"id":"chair","name":"의자","price":25,"upgrade_price":15}]
+	game._render()
+	await frames()
+	var equipment: Button
+	for candidate in ui.action_buttons:
+		if candidate.text.contains("15원"): equipment = candidate
+	assert(equipment != null)
+	var before_buy: int = game.requests.size()
+	equipment.pressed.emit()
+	await frames()
+	assert(ui.purchase_dialog.visible and game.requests.size() == before_buy)
+	ui.purchase_dialog.get_cancel_button().pressed.emit()
+	await frames()
+	assert(not ui.purchase_dialog.visible and game.requests.size() == before_buy)
+	equipment.pressed.emit()
+	await frames()
+	assert(ui.purchase_dialog.visible)
+	ui.purchase_dialog.get_ok_button().pressed.emit()
+	await frames()
+	assert(game.requests.size() == before_buy + 1 and game.requests.back().command == "upgrade_gear")
+	game.state.phase = "settlement"
+	game.state.week_income = 45
+	game.state.week_spent = 20
+	game.state.parcel_box = ["lantern"]
+	game._render()
+	await frames()
+	assert(ui.details_dialog.visible and ui.details_mode == "settlement")
+	assert(ui.camp_menu.visible and not ui.dock.visible)
+	ui.open_details("parcels")
+	assert(ui.details_dialog.visible and ui.details_mode == "parcels" and ui.details.get_child(0).text.contains("5원"))
+	ui.details_dialog.hide()
+	assert(ui.camp_menu.visible)
+	print("PASS camp actions: mouse/touch preview / confirm / cancel / walk+install / once-only save / failure / rotation / scenery movement / four seat directions / both characters+outfits / phone-fold-PC / sleep / purchase confirmation")
 	game.queue_free();await process_frame;quit()
 
 func frames() -> void:
@@ -184,17 +269,31 @@ func accept_install() -> void:
 
 func drag(id: String, target: Vector3, touch: bool) -> void:
 	await frames()
-	var node
-	for child in world.items_root.get_children():
-		if child.get_child(1).get_meta("item") == id: node=child
-	var start: Vector2=world.screen_point(node.position+Vector3(0,world.dimensions(id).y*.45,0))
-	var offset: Vector2=start-world.screen_point(node.position)
+	var start: Vector2
+	var offset := Vector2.ZERO
+	if game.state.field.has(id):
+		var node
+		for child in world.items_root.get_children():
+			if child.get_child(1).get_meta("item") == id: node=child
+		start=world.screen_point(node.position+Vector3(0,world.dimensions(id).y*.45,0))
+		offset=start-world.screen_point(node.position)
+	else:
+		ui.gear_tray_open=true;ui.update_placement_visibility();ui.fit()
+		await frames()
+		var card
+		for child in ui.gear_cards.get_children():
+			if child.item_id==id: card=child
+		assert(card!=null)
+		start=card.get_global_rect().get_center()
+		offset=Vector2(0,28)
 	var end: Vector2=world.screen_point(target-Vector3(world.origin_x,0,world.origin_z))+offset
 	if touch:
 		var press:=InputEventScreenTouch.new();press.index=0;press.position=start;press.pressed=true;Input.parse_input_event(press);await process_frame
-		var motion:=InputEventScreenDrag.new();motion.index=0;motion.position=end;Input.parse_input_event(motion);await process_frame
+		for at in [start+Vector2(0,-14),end]:
+			var motion:=InputEventScreenDrag.new();motion.index=0;motion.position=at;Input.parse_input_event(motion);await process_frame
 		var release:=InputEventScreenTouch.new();release.index=0;release.position=end;release.pressed=false;Input.parse_input_event(release);await process_frame
 	else:
 		var press:=InputEventMouseButton.new();press.button_index=MOUSE_BUTTON_LEFT;press.position=start;press.pressed=true;Input.parse_input_event(press);await process_frame
-		var motion:=InputEventMouseMotion.new();motion.position=end;motion.button_mask=MOUSE_BUTTON_MASK_LEFT;Input.parse_input_event(motion);await process_frame
+		for at in [start+Vector2(0,-14),end]:
+			var motion:=InputEventMouseMotion.new();motion.position=at;motion.button_mask=MOUSE_BUTTON_MASK_LEFT;Input.parse_input_event(motion);await process_frame
 		var release:=InputEventMouseButton.new();release.button_index=MOUSE_BUTTON_LEFT;release.position=end;release.pressed=false;Input.parse_input_event(release);await process_frame

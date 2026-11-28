@@ -71,12 +71,13 @@ class MvpApiTest {
         p.act("office_review","revise",wrong);
         assertEquals(1,((Map<?,?>)p.s().get("office_task")).get("index"));
         assertEquals(1,p.s().get("office_pay"));
+        assertEquals(18_000,p.s().get("office_remaining_ms"));
         assertEquals(400,call("POST","actions/",p.token,Map.of("command","office_review","choice","approve","case_id",current.get("case_id"),"version",p.saved.get("version"))).status());
         p.act("office_review",officeAnswer(p),officeBody(p));
         assertEquals(3,p.s().get("office_pay"));
         p.act("office_pause","",Map.of("elapsed_ms",500));
         p.act("tick","",Map.of("elapsed_ms",2000));
-        assertEquals(19_500,p.s().get("office_remaining_ms"));
+        assertEquals(17_500,p.s().get("office_remaining_ms"));
         assertEquals(p.saved,call("GET","state/",p.token,null).data());
         p.act("office_start");expireOfficeShift(p);
         assertFalse(p.s().containsKey("office_case"));
@@ -193,6 +194,25 @@ class MvpApiTest {
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(stacked,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",180)));
         var straight=MvpRules.transition(s,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",0));
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(straight,"place_item","stove",Map.of("x",5,"y",.9,"z",3.6,"rotation_degrees",0)));
+    }
+    @Test void sleepingBagFitsOnlyInsideTentAndMustBePutAwayFirst() {
+        var site=MvpRules.initialState();
+        site.put("phase","setup");
+        site.put("place","lake");
+        site.put("cargo",Map.of("tent",Map.of(),"sleeping_bag",Map.of(),"chair",Map.of()));
+        var center=Map.<String,Object>of("x",3,"y",0,"z",3,"rotation_degrees",90);
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(site,"place_item","sleeping_bag",center));
+        var tent=MvpRules.transition(site,"place_item","tent",center);
+        var outside=Map.<String,Object>of("x",5,"y",0,"z",3,"rotation_degrees",90);
+        var overEdge=Map.<String,Object>of("x",3.25,"y",0,"z",3,"rotation_degrees",90);
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(tent,"place_item","sleeping_bag",outside));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(tent,"place_item","sleeping_bag",overEdge));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(tent,"place_item","chair",center));
+        var bed=MvpRules.transition(tent,"place_item","sleeping_bag",center);
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(bed,"remove_item","tent",Map.of()));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(bed,"place_item","tent",outside));
+        var cleared=MvpRules.transition(bed,"remove_item","sleeping_bag",Map.of());
+        assertTrue(MvpRules.grid(MvpRules.transition(cleared,"remove_item","tent",Map.of()),"field").isEmpty());
     }
     @Test void completeTripConsumesFoodMailsOnlyUnpackedReturnGearAndPersists()throws Exception {
         var p=new Player();p.prepare(true);p.place("tent",0,0,false);p.place("stove",3,0,false);p.place("chair",3,1,false);p.place("meal",5,4,false);

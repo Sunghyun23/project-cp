@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "asset_id": "upgraded_sleeping_bag",
+  "runtime_item_id": "sleeping_bag",
+  "variant": "upgraded",
+  "kind": "item",
+  "status": "runtime_integrated",
+  "coordinate_system": "z_up",
+  "art": {
+    "runtime_image": "game/assets/pixel/items/upgraded_sleeping_bag/directions.png",
+    "canvas_size_px": [
+      1254,
+      1254
+    ],
+    "cell_size_px": [
+      627,
+      627
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "angles": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "pivot_px_by_angle": {
+      "0": [
+        333.5,
+        330
+      ],
+      "90": [
+        293.5,
+        330
+      ],
+      "180": [
+        304.5,
+        348
+      ],
+      "270": [
+        322,
+        348
+      ]
+    },
+    "sprite_world_width": 2.45,
+    "transparent_background": true,
+    "movable_equipment_baked_in": false,
+    "character_baked_in": false,
+    "sprite_scale_y": 0.66,
+    "pivot_note": "game floor footprint center; separate from visible sprite bottom"
+  },
+  "placement": {
+    "footprint_xy": [
+      0.75,
+      1.75
+    ],
+    "visual_height_z": 0.12,
+    "stackable": false,
+    "can_place_on_table": false,
+    "allowed_rotation_degrees": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "runtime_source": "server/src/main/java/com/projectcp/api/MvpRules.java",
+    "rule": "inside installed tent only; bounds must fit"
+  },
+  "cargo": {
+    "runtime_source": "server item_catalog.cells; unchanged by this image edit"
+  },
+  "interactions": {
+    "sittable": false,
+    "installation": {
+      "animation": "install",
+      "confirm_required": true,
+      "cancel_before_save": true,
+      "visible_after": "actor_animation_and_server_success"
+    }
+  },
+  "provenance": {
+    "tool": "built-in image_gen",
+    "reference": "art/source/references/camp-equipment-reference.png",
+    "prompt": "Use case: precise-object-edit. Reference image: supplied nighttime camping illustration. Extract the DESIGN of its navy blue MUMMY SLEEPING BAG, re-create as isolated deployable pixel-art gear without the sleeping person. Dark navy blue puffy insulated mummy shape, rounded hood with sage green inner lining, horizontal quilted baffles, tapered rounded foot box, subtle zipper. Empty hood; absolutely NO face, hair, body, arms or character inside. No scenery, ground, other equipment, text, Zzz marks, shadows outside object, watermark. Exactly 2 equal columns x2 equal rows on 1024x1024, 512x512 cells, four 90-degree orientations of the SAME bag seen in fixed45-degree isometric view, elevation30degrees: top-left head upper-right foot lower-left (matching reference), top-right head upper-left foot lower-right, bottom-left head lower-left foot upper-right, bottom-right head lower-right foot upper-left. Keep fabric dimensions/scale, hood width, volume and style consistent. Center ground footprint percell x256 y340; bag spans about390px along its diagonal with generous transparent gutters; do not fill cell with extra graphics. Crisply outlined chunky pixel art, reference's navy quilt colors, no blur or photoreal textures. Real transparent RGBA background mandatory.",
+    "source_filename": "exec-dcdfea73-150a-44c5-82a7-cbb0b01fb448.png",
+    "editable_layers_available": false
+  },
+  "review": {
+    "image": "generated sheet reviewed; tent dome/patches and empty navy mummy bag",
+    "runtime_link": "mvp_assets.gd consumes reference-gear.json; model uses per-frame pivots and visual Y scale",
+    "phone": "macOS Compatibility render 390x844 verified",
+    "fold": "macOS Compatibility render 820x920 verified; four directions",
+    "pc": "macOS Compatibility render 1280x900 verified",
+    "android_device": "not_tested"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "worn_tent": {
+    "runtime_image": "game/assets/pixel/items/worn_tent/directions.png",
+    "canvas_size_px": [
+      1254,
+      1254
+    ],
+    "cell_size_px": [
+      627,
+      627
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "angles": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "pivot_px_by_angle": {
+      "0": [
+        326.5,
+        420
+      ],
+      "90": [
+        300.5,
+        420
+      ],
+      "180": [
+        324,
+        415
+      ],
+      "270": [
+        303,
+        415
+      ]
+    },
+    "sprite_world_width": 3.2,
+    "transparent_background": true,
+    "movable_equipment_baked_in": false,
+    "character_baked_in": false,
+    "sprite_scale_y": 1.0
+  },
+  "upgraded_sleeping_bag": {
+    "runtime_image": "game/assets/pixel/items/upgraded_sleeping_bag/directions.png",
+    "canvas_size_px": [
+      1254,
+      1254
+    ],
+    "cell_size_px": [
+      627,
+      627
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "angles": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "pivot_px_by_angle": {
+      "0": [
+        333.5,
+        330
+      ],
+      "90": [
+        293.5,
+        330
+      ],
+      "180": [
+        304.5,
+        348
+      ],
+      "270": [
+        322,
+        348
+      ]
+    },
+    "sprite_world_width": 2.45,
+    "transparent_background": true,
+    "movable_equipment_baked_in": false,
+    "character_baked_in": false,
+    "sprite_scale_y": 0.66
+  }
+}

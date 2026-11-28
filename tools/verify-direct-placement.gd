@@ -9,6 +9,7 @@ func _initialize() -> void:
 	run.call_deferred()
 func run() -> void:
 	create_timer(20).timeout.connect(func(): printerr("FAIL routed drag timeout"); quit(1))
+	Input.use_accumulated_input=false
 	root.size = Vector2i(820,920)
 	snapshot = JSON.parse_string(FileAccess.get_file_as_string("/tmp/cp-mvp-fixtures.json")).setup.duplicate(true)
 	snapshot.field = {}
@@ -22,7 +23,7 @@ func run() -> void:
 	ui.action_requested.connect(func(command,choice,extra): sent={"command":command,"id":choice,"angle":extra.get("rotation_degrees",0),"point":Vector3(extra.get("x",0),extra.get("z",0),extra.get("y",0))})
 	ui.apply_state(snapshot,false,"",false,false)
 	for i in range(12): await process_frame
-	assert(world.items_root.get_child_count() == snapshot.cargo.size()-1)
+	assert(world.items_root.get_child_count() == 0 and ui.gear_cards.get_child_count() == snapshot.cargo.size()-1)
 	assert(not world.gizmo.visible and world.grid_root.visible and not ui.placement_commit.visible and not ui.dock.visible)
 	await drag("tent", Vector3(1.5,0,1), false)
 	assert(sent.id == "tent" and sent.point.is_equal_approx(Vector3(1.5,0,1)))
@@ -73,19 +74,32 @@ func run() -> void:
 	print("PASS direct placement: four rotations / button+R+pad / directional sprites / drag / support / save / rollback")
 	quit()
 func drag(id: String, target: Vector3, touch: bool) -> void:
-	var node
-	for child in world.items_root.get_children():
-		if child.get_child(1).get_meta("item") == id: node=child
-	var start: Vector2 = world.screen_point(node.position+Vector3(0,world.dimensions(id).y*.45,0))
-	var offset: Vector2 = start-world.screen_point(node.position)
+	var start: Vector2
+	var offset := Vector2.ZERO
+	if snapshot.field.has(id):
+		var node
+		for child in world.items_root.get_children():
+			if child.get_child(1).get_meta("item") == id: node=child
+		start=world.screen_point(node.position+Vector3(0,world.dimensions(id).y*.45,0))
+		offset=start-world.screen_point(node.position)
+	else:
+		ui.gear_tray_open=true;ui.update_placement_visibility();ui.fit()
+		for i in range(8): await process_frame
+		var card
+		for child in ui.gear_cards.get_children():
+			if child.item_id==id: card=child
+		assert(card!=null)
+		start=card.get_global_rect().get_center();offset=Vector2(0,28)
 	var end: Vector2 = world.screen_point(Vector3(target.x-4,target.y,target.z-3))+offset
 	if touch:
 		var press := InputEventScreenTouch.new(); press.index=0; press.position=start; press.pressed=true; Input.parse_input_event(press); await process_frame
-		var motion := InputEventScreenDrag.new(); motion.index=0; motion.position=end; Input.parse_input_event(motion); await process_frame
+		for at in [start+Vector2(0,-14),end]:
+			var motion := InputEventScreenDrag.new(); motion.index=0; motion.position=at; Input.parse_input_event(motion); await process_frame
 		var release := InputEventScreenTouch.new(); release.index=0; release.position=end; release.pressed=false; Input.parse_input_event(release); await process_frame
 	else:
 		var press := InputEventMouseButton.new(); press.button_index=MOUSE_BUTTON_LEFT; press.position=start; press.pressed=true; Input.parse_input_event(press); await process_frame
-		var motion := InputEventMouseMotion.new(); motion.position=end; motion.button_mask=MOUSE_BUTTON_MASK_LEFT; Input.parse_input_event(motion); await process_frame
+		for at in [start+Vector2(0,-14),end]:
+			var motion := InputEventMouseMotion.new(); motion.position=at; motion.button_mask=MOUSE_BUTTON_MASK_LEFT; Input.parse_input_event(motion); await process_frame
 		var release := InputEventMouseButton.new(); release.button_index=MOUSE_BUTTON_LEFT; release.position=end; release.pressed=false; Input.parse_input_event(release); await process_frame
 	if ui.preview_dirty:
 		assert(not ui.drop_pending)

@@ -33,6 +33,7 @@ static func frames(id: String, outfit: String = "basic") -> SpriteFrames:
 	var actions: Texture2D = ACTIONS[(id if id in IDS else "female")+"_"+("rain" if outfit == "rain" else "basic")]
 	var action_cell := Vector2(actions.get_size()) / Vector2(4,2)
 	for column in range(4):
+		# Pose names describe the original atlas. Chair rotation is mapped by chair metadata.
 		var animation := "sit_%d"%(column*90)
 		result.add_animation(animation)
 		var atlas := AtlasTexture.new()

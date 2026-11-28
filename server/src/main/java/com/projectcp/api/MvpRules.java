@@ -176,7 +176,7 @@ final class MvpRules {
             case "lantern"->new double[]{.5,1.0,.7};case "sleeping_bag"->new double[]{.75,.12,1.75};default->new double[]{1.4,.06,2.1};};
         return rotated?new double[]{b[2],b[1],b[0]}:b;
     }
-    static int fieldRotation(Map<String,Object> value) {
+    static int fieldRotation(Map<?,?> value) {
         Object angle=value.get("rotation_degrees");
         return angle instanceof Number?((Number)angle).intValue():Boolean.TRUE.equals(value.get("rotated"))?90:0;
     }
@@ -223,8 +223,13 @@ final class MvpRules {
             need(supported,"물건 전체를 올릴 수 있는 받침 위에 놓아 주세요.");
         } else y=0;
         if(Boolean.TRUE.equals(CampsiteCatalog.surface(id).get("stackable"))&&field.containsKey(id))need(!hasSupportedItems(field,id),"받침 위 물건을 먼저 내려 주세요.");
+        if(id.equals("sleeping_bag")) {
+            need(field.get("tent") instanceof Map<?,?> tent && insideTent(x,z,b,tent),
+                "텐트를 먼저 설치하고 침낭을 텐트 안에 펼쳐 주세요.");
+        }
+        if(id.equals("tent")) need(!hasTentBedding(field),"침낭을 먼저 접어 주세요.");
         for(var e:field.entrySet()) {
-            if(e.getKey().equals(id))continue;
+            if(e.getKey().equals(id)||(id.equals("sleeping_bag")&&e.getKey().equals("tent")))continue;
             var p=(Map<String,Object>)e.getValue();var q=bounds(e.getKey(),quarterTurn(p));
             double px=((Number)p.get("x")).doubleValue(),py=((Number)p.get("y")).doubleValue(),pz=((Number)p.get("z")).doubleValue();
             boolean overlap=Math.abs(x-px)<(b[0]+q[0])/2-.02&&Math.abs(z-pz)<(b[2]+q[2])/2-.02&&y<py+q[1]-.02&&y+b[1]>py+.02;
@@ -236,8 +241,19 @@ final class MvpRules {
     @SuppressWarnings("unchecked") static boolean hasSupportedItems(Map<String,Object>field,String id) {
         return field.entrySet().stream().anyMatch(e->!e.getKey().equals(id)&&((Number)((Map<String,Object>)e.getValue()).get("y")).doubleValue()>.02);
     }
+    private static boolean insideTent(double x,double z,double[] bag,Map<?,?> tent) {
+        double[] footprint=bounds("tent",false);
+        return Math.abs(x-((Number)tent.get("x")).doubleValue())+bag[0]/2<=footprint[0]/2+.01
+            &&Math.abs(z-((Number)tent.get("z")).doubleValue())+bag[2]/2<=footprint[2]/2+.01;
+    }
+    private static boolean hasTentBedding(Map<String,Object> field) {
+        if(!(field.get("tent") instanceof Map<?,?> tent)||!(field.get("sleeping_bag") instanceof Map<?,?> bag))return false;
+        return insideTent(((Number)bag.get("x")).doubleValue(),((Number)bag.get("z")).doubleValue(),
+            bounds("sleeping_bag",fieldRotation(bag)%180!=0),tent);
+    }
     static void removeField(Map<String,Object>s,String id) {
         var field=grid(s,"field");
+        if(id.equals("tent"))need(!hasTentBedding(field),"침낭을 먼저 접어 주세요.");
         need(!Boolean.TRUE.equals(CampsiteCatalog.surface(id).get("stackable"))||!hasSupportedItems(field,id),"받침 위 물건을 먼저 내려 주세요.");
         field.remove(id);
     }

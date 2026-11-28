@@ -9,4 +9,4 @@
 
 아이템·장소·캐릭터 제작은 [어셋 제작 규칙](../../docs/06-art-audio/asset-spec.md)을 따른다. 작성용 초안은 [아이템](templates/item.asset.example.json)·[장소](templates/campsite.asset.example.json)·[캐릭터](templates/character.asset.example.json) 예시를 복사해 시작한다. 신규 원본·메타데이터의 기본 위치는 `items/<id>/`, `places/<id>/`, `characters/<id>/`이며 기존 PNG·프롬프트는 이동하지 않는다. 예시의 수치는 임시이며 런타임에 자동 반영되지 않는다.
 
-[D180의 종류별 필수 속성](../../docs/06-art-audio/asset-spec.md#종류별-필수-속성-기록--d180)을 누락한 어셋은 초안으로 남긴다. [현재 의자](items/chair/asset.json)는 착석·설치 연결 정보를 기록한 실제 등록 예이며 작성용 템플릿과 구분한다.
+[D200의 종류별 필수 속성](../../docs/06-art-audio/asset-spec.md#종류별-필수-속성-기록--d200)을 누락한 어셋은 초안으로 남긴다. [현재 의자](items/chair/asset.json)는 착석·설치 연결 정보를 기록한 실제 등록 예이며 작성용 템플릿과 구분한다.

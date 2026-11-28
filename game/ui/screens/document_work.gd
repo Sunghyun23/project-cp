@@ -162,7 +162,8 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 			var summary:=text("업무 시간이 끝났어요\n\n%d건 처리 · 오답 %d건\n\n오늘 급여 %d원"%[index,int(task.get("mistakes",0)),pay],28)
 			summary.size_flags_horizontal=SIZE_EXPAND_FILL;papers.add_child(summary)
 	feedback.text="저장 중…" if saving else message if must_check or (not message.is_empty() and not message.begins_with("서버 저장 완료")) else str(task.get("feedback","서류 내용을 대조해 주세요."))
-	if done and not saving and not must_check: feedback.text="검토 완료! 퇴근하면 오늘 급여를 받아요."
+	if done and not saving and not must_check and not feedback.text.contains("−2초"):
+		feedback.text="검토 완료! 퇴근하면 오늘 급여를 받아요."
 	feedback.add_theme_color_override("font_color",Color("ffdb98") if int(task.get("mistakes",0))>0 else Color("f7edce"))
 	approve.disabled=saving or must_check or done;approve.visible=not done;approve.case_id=current_case
 	if invoice!=null: invoice.draggable=not saving and not must_check
@@ -175,14 +176,19 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 
 func judge(choice: String, field := "") -> void:
 	if pending or check_required or current_case.is_empty(): return
-	if choice == "approve":
-		show_approval_stamp()
+	show_stamp(choice)
 	action_requested.emit("office_review",choice,{"case_id":current_case,"field":field})
 
-func show_approval_stamp() -> void:
+func show_stamp(choice: String) -> void:
 	if not is_instance_valid(invoice): return
 	if stamp_tween != null: stamp_tween.kill()
-	stamp_mark.text = "결재"
+	var approving := choice == "approve"
+	stamp_mark.text = "결재" if approving else "보완 요청"
+	stamp_mark.add_theme_font_size_override("font_size", 48 if approving else 37)
+	var ink := Color("a4312e") if approving else Color("31577f")
+	stamp_mark.add_theme_color_override("font_color", ink)
+	var seal: StyleBoxFlat = stamp_mark.get_theme_stylebox("normal")
+	seal.border_color = ink
 	stamp_mark.size = Vector2(minf(200, size.x * .56), 78)
 	stamp_mark.position = get_global_transform().affine_inverse() * papers.get_global_rect().get_center() - stamp_mark.size * 0.5
 	stamp_mark.pivot_offset = stamp_mark.size * 0.5

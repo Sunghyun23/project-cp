@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "asset_id": "worn_tent",
+  "runtime_item_id": "tent",
+  "variant": "starter",
+  "kind": "item",
+  "status": "runtime_integrated",
+  "coordinate_system": "z_up",
+  "art": {
+    "runtime_image": "game/assets/pixel/items/worn_tent/directions.png",
+    "canvas_size_px": [
+      1254,
+      1254
+    ],
+    "cell_size_px": [
+      627,
+      627
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "angles": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "pivot_px_by_angle": {
+      "0": [
+        326.5,
+        420
+      ],
+      "90": [
+        300.5,
+        420
+      ],
+      "180": [
+        324,
+        415
+      ],
+      "270": [
+        303,
+        415
+      ]
+    },
+    "sprite_world_width": 3.2,
+    "transparent_background": true,
+    "movable_equipment_baked_in": false,
+    "character_baked_in": false,
+    "sprite_scale_y": 1.0,
+    "pivot_note": "game floor footprint center; separate from visible sprite bottom"
+  },
+  "placement": {
+    "footprint_xy": [
+      2,
+      2
+    ],
+    "visual_height_z": 1.8,
+    "stackable": false,
+    "can_place_on_table": false,
+    "allowed_rotation_degrees": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "runtime_source": "server/src/main/java/com/projectcp/api/MvpRules.java",
+    "rule": "ground_only; sleeping_bag must be removed before moving"
+  },
+  "cargo": {
+    "runtime_source": "server item_catalog.cells; unchanged by this image edit"
+  },
+  "interactions": {
+    "sittable": false,
+    "installation": {
+      "animation": "install",
+      "confirm_required": true,
+      "cancel_before_save": true,
+      "visible_after": "actor_animation_and_server_success"
+    }
+  },
+  "provenance": {
+    "tool": "built-in image_gen",
+    "reference": "art/source/references/camp-equipment-reference.png",
+    "prompt": "Use case: precise-object-edit. Reference image: supplied nighttime camping illustration, use ONLY the worn tent's design and pixel-art style as reference. Produce a TRANSPARENT isolated game sprite sheet of that same squat rounded dome tent: olive/khaki multi-panel curved fabric roof, worn stitched patches, burnt orange brown bottom skirt, tan triangular zip doorway with empty brown floor inside. This must be a rounded DOME tent matching the reference, NOT an A-frame or pyramid. No lantern or light source inside; no chair, person, other gear, scenery, ground patch, shadows outside the object, text, watermark. Exactly 2 equal columns x 2 equal rows on 1024x1024, cells512x512. Same tent in four actual 90-degree rotations: top-left 0 front-left doorway visible, top-right 90 back-left rear fabric visible, bottom-left 180 back-right rear fabric visible, bottom-right 270 front-right doorway visible. Fixed 45-degree isometric view, camera elevation30degrees. Equal scale per cell, all fabric/ropes contained with transparent gutters, base ground anchor at cell x256 y410, width about420px, height about330px; preserve proportions. Crisp chunky pixel shapes and dark outline like reference, limited painterly pixel palette, no smoothing. The transparent empty outside must be real alpha. This is deployable game art, not a scene or labeled concept sheet.",
+    "source_filename": "exec-96eaef52-1b6c-419a-a1a9-1dc8d2d9a0fc.png",
+    "editable_layers_available": false
+  },
+  "review": {
+    "image": "generated sheet reviewed; tent dome/patches and empty navy mummy bag",
+    "runtime_link": "mvp_assets.gd consumes reference-gear.json; model uses per-frame pivots and visual Y scale",
+    "phone": "macOS Compatibility render 390x844 verified",
+    "fold": "macOS Compatibility render 820x920 verified; four directions",
+    "pc": "macOS Compatibility render 1280x900 verified",
+    "android_device": "not_tested"
+  }
+}

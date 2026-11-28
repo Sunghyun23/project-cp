@@ -280,3 +280,11 @@ MVP 추가 에셋: `camping-props.png`(2D 장비 6종), `camper-male-rain.png`·
 ## 캐릭터 앉기·설치 스프라이트 — D166~D167
 
 `game/assets/pixel/characters/{male,female}/{basic,rain}-actions.png`: 내장 image_gen으로 기존 남녀·의상별 시트를 참조해 만든 1536×1024 RGBA, 4열×2행, 셀 384×512. 위 행은 의자 0/90/180/270도별 앉기, 아래 행은 손을 움직이는 설치 4프레임이다. 의자·장비를 캐릭터 시트에 합성하지 않는다. [메타데이터·전체 프롬프트](../../game/assets/pixel/characters/actions-metadata.json)에 참조·발 기준점·앉기 골반 기준점·프레임을 기록한다. `character_catalog.gd`가 기존 idle/walk와 결합한다. 의자 그림의 방향별 좌석 기준점은 기존 `camping-props-directions-metadata.json`의 `chair.interaction`에 기록하고 실제 착석 그림을 맞춘다. 의자의 stackable=false와 아이템 점유/받침 판정은 유지한다. 최종 아트 승인과 Android 실기기 검증은 별도다.
+
+## 참조 사진 기반 낡은 텐트·업그레이드 침낭 — D203
+
+2026-11-28 사용자 사진을 기준으로 낡은 텐트를 카키 패치·갈색 하단의 둥근 돔형으로, 업그레이드 침낭을 남색 누빔·연녹색 안감의 후드형 머미 모양으로 교체했다. 내장 image_gen으로 네 방향을 생성했다. 사람·랜턴·의자·빛을 두 장비에 합성하지 않았으며 기존 이미지 원본은 보존한다. 기존 취침 전용 `open-tent-sleep.png`와 현장 배치 그림은 구분한다.
+
+게임 출력은 `game/assets/pixel/items/worn_tent/directions.png`와 `items/upgraded_sleeping_bag/directions.png`다. 실제 PNG는 1254×1254, 2열×2행, 셀 627×627이다. [텐트 메타데이터·프롬프트](../../art/source/items/worn_tent/asset.json) · [침낭 메타데이터·프롬프트](../../art/source/items/upgraded_sleeping_bag/asset.json)에 출처·방향별 기준점·점유·받침·설치·검증을 기록했다. `reference-gear.json`의 픽셀 기준점·표시 폭·시점 보정은 런타임에서 사용한다. 현장 점유와 트렁크 크기는 그림 교체로 변경하지 않는다.
+
+`verify-reference-gear.gd`로 기본 텐트/업그레이드 침낭의 실제 선택·네 방향 프레임·기준점·목록 그림·폰/폴드/PC 렌더링을 확인했다. [배치 시안](../../design/mvp/previews/mvp/reference-gear-0.png) · [설치 후](../../design/mvp/previews/mvp/reference-gear-installed.png). 최종 아트 승인·Android 실기기 검증은 별도다.
