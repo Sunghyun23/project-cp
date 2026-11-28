@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "document_kind": "authoring_example_not_runtime",
+  "status": "draft",
+  "asset_id": "example_character",
+  "kind": "character",
+  "character_id": null,
+  "outfit_id": null,
+  "art": {
+    "source_file": null,
+    "runtime_image": null,
+    "canvas_size_px": null,
+    "cell_size_px": null,
+    "transparent_background": true,
+    "feet_pivot_px": null,
+    "contact_anchors_px": {
+      "seated_hip": null
+    }
+  },
+  "animations": {
+    "idle": {
+      "frames": [],
+      "fps": null,
+      "loop": true
+    },
+    "walk": {
+      "frames": [],
+      "fps": null,
+      "loop": true
+    },
+    "sit": {
+      "frames_by_direction": {},
+      "fps": null,
+      "loop": true,
+      "enter_condition": null,
+      "exit_condition": "movement_or_phase_change"
+    },
+    "install": {
+      "frames": [],
+      "fps": null,
+      "loop": true,
+      "completion_rule": null
+    }
+  },
+  "runtime_link": null,
+  "provenance": {
+    "tool_or_author": null,
+    "reference": null,
+    "prompt_or_source": null
+  },
+  "review": {
+    "image": "pending",
+    "anchor_alignment": "pending",
+    "runtime_link": "pending",
+    "phone": "pending",
+    "fold": "pending",
+    "pc": "pending",
+    "android_device": "not_tested"
+  }
+}

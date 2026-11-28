@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "asset_id": "chair",
+  "kind": "item",
+  "status": "runtime_integrated",
+  "coordinate_system": "z_up",
+  "art": {
+    "runtime_image": "game/assets/pixel/field-furniture.png",
+    "source_note": "원격 main의 1fc143a 커밋에서 추가된 가구 PNG. 기존 camping-props-directions.png는 상품/과거 표현 참조로 보존한다.",
+    "canvas_size_px": [
+      1024,
+      512
+    ],
+    "cell_size_px": [
+      256,
+      256
+    ],
+    "row": 1,
+    "columns_by_angle": {
+      "0": 0,
+      "90": 1,
+      "180": 2,
+      "270": 3
+    },
+    "pivot_px": [
+      128,
+      192
+    ],
+    "transparent_background": true
+  },
+  "placement": {
+    "footprint_xy": [
+      1,
+      1
+    ],
+    "visual_height_z": 1.2,
+    "stackable": false,
+    "can_place_on_table": false,
+    "rotation_degrees": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "selection": "불투명 픽셀과 최소 56 논리 픽셀 선택 범위",
+    "runtime_source": "game/ui/components/camp_editor_3d.gd / server/src/main/java/com/projectcp/api/MvpRules.java"
+  },
+  "cargo": {
+    "cells": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "rotation_degrees": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "runtime_source": "server/src/main/java/com/projectcp/api/MvpRules.java"
+  },
+  "interactions": {
+    "sittable": true,
+    "seat_anchor_px_by_angle": {
+      "0": [
+        128,
+        170
+      ],
+      "90": [
+        128,
+        170
+      ],
+      "180": [
+        128,
+        170
+      ],
+      "270": [
+        128,
+        170
+      ]
+    },
+    "seat_anchor_coordinate_system": "each_image_cell_top_left",
+    "seated_hip_anchor_px": [
+      192,
+      345
+    ],
+    "approach_rule": "점유 반너비/반깊이 + 0.45 단위의 네 후보 중 도달 가능한 최단 경로 선택",
+    "animation_by_angle": {
+      "0": "sit_0",
+      "90": "sit_90",
+      "180": "sit_180",
+      "270": "sit_270"
+    },
+    "exit_on_move": true,
+    "installation": {
+      "confirm_required": true,
+      "animation": "install",
+      "duration_seconds_prototype": 1.0,
+      "cancel_before_save": true,
+      "visibility": "preview_ghost_then_hidden_until_animation_and_server_success"
+    },
+    "runtime_link": "game/scripts/camp_actor.gd / game/ui/components/camp_editor_3d.gd / game/ui/components/character_catalog.gd"
+  },
+  "review": {
+    "runtime_link": "connected",
+    "phone": "macOS render 390x844 verified",
+    "fold": "macOS render 820x920 verified",
+    "pc": "macOS render 1280x900 verified",
+    "android_device": "not_tested",
+    "final_art_approval": "pending"
+  }
+}

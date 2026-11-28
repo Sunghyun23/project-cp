@@ -49,7 +49,8 @@
         180,
         270
       ]
-    }
+    },
+    "can_place_on_table": false
   },
   "selection": {
     "mode": "alpha",
@@ -84,7 +85,9 @@
     ],
     "rotation_degrees": [
       0,
-      90
+      90,
+      180,
+      270
     ]
   },
   "provenance": {
@@ -99,5 +102,17 @@
     "fold": "pending",
     "pc": "pending",
     "android_device": "not_tested"
+  },
+  "interactions": {
+    "sittable": false,
+    "sit": null,
+    "installation": {
+      "approach_rule": null,
+      "character_animation": "install",
+      "confirm_required": true,
+      "cancel_before_save": true,
+      "visible_after": "actor_animation_and_server_success",
+      "runtime_link": null
+    }
   }
 }

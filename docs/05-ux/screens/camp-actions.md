@@ -1,6 +1,6 @@
 # 캠핑 캐릭터 이동·착석·설치
 
-- 상태: 사용자 방향·충돌 변경 확인, 로컬 구현·검증 완료, 배포 준비
+- 상태: 사용자 방향·충돌 변경 확인, 구현·검증 및 공개 배포 완료
 - 변경일: 2026-11-28
 - 담당: AI 구현·제작·검증, 사용자 플레이·아트 검토
 - 근거: D165~D167. 사용자가 감상 중 이동, 의자 착석 스프라이트, 직접 걸어가 손을 움직이는 설치를 요청했다. 기존 조작과의 충돌을 설명한 뒤 감상 입력 변경과 확정/취소 흐름을 확인했다.
@@ -46,7 +46,7 @@ macOS Compatibility GPU에서 `verify-camp-actions.gd`를 통과했다. 마우�
 
 [착석 폰](../../../design/mvp/previews/mvp/sitting-phone.png) · [폴드](../../../design/mvp/previews/mvp/sitting-fold.png) · [PC](../../../design/mvp/previews/mvp/sitting-pc.png) · [배치 확정](../../../design/mvp/previews/mvp/placement-confirm.png) · [설치 동작](../../../design/mvp/previews/mvp/installing.png).
 
-공개 배포 결과는 적용 후 기록한다. 실제 Android 기기·물리 게임패드·브라우저별 GPU 검증과 최종 아트 승인은 별도다.
+2026-11-28 통합 커밋 `b8433d159cc6e1b81ea5da250ebc202c173db7f6`을 웹·API에 공개 배포했다. 릴리스는 `20261128T105447Z-b8433d159cc6-27100`, 웹 빌드 해시는 `0c2a13a579281db2f2af89e84769bbb806a8dc5b63708f845ef2b8e6d5ad04d1`이다. 공개 HTTPS의 build-info·deployment 일치, API/DB 정상, 게임 파일·인트로 영상 응답을 확인했다. 복구 사본은 서버 `/opt/project-cp/backups/releases/20261128T105447Z-b8433d159cc6-27100/`에 보존한다. 실제 Android 기기·물리 게임패드·브라우저별 GPU 검증과 최종 아트 승인은 별도다.
 
 사용자 후속 지적 반영: 드래그/확정만으로 장비가 먼저 실제 설치된 것처럼 보이지 않는다. 미확정 후보는 반투명, 이동·설치·저장 중 후보 그림은 숨긴다. 기존 장비를 옮기는 경우 원래 설치본·광원은 저장 성공까지 이전 위치를 유지한다. 서버가 성공을 돌려준 뒤 새 위치에 실제 장비와 광원을 표시한다.
 
