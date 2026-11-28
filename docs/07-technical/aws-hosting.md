@@ -42,6 +42,8 @@ AWS Free Tier 크레딧으로 Lightsail 사용을 시작할 수 있다. 서버 �
 
 ## 참고
 
+공동 개발자의 수동 배포는 [GitHub 공유 배포](shared-deployment.md)를 따른다. 개인 관리 키와 구분되는 GitHub 환경 Secret의 전용 키를 사용하며, main의 웹/API 빌드·검사·서버 백업·배포를 실행한다.
+
 - [Lightsail 요금](https://aws.amazon.com/lightsail/pricing/)
 - [Lightsail 무료 크레딧 안내](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-frequently-asked-questions-faq-billing-and-account-management.html)
 - [AWS Free Tier](https://aws.amazon.com/free/)

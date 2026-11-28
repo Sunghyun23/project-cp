@@ -57,3 +57,5 @@ bash tools/dev.sh web
 [로컬 프로토타입](http://localhost:8080)을 연다. macOS 창은 `bash tools/dev.sh play`로 실행한다.
 
 첫 완주 웹 MVP의 구현 범위·임시 수치·호환·검증은 [MVP 구현 기준](docs/07-technical/mvp-v1.md)에 기록한다.
+
+다른 개발자도 저장소 Write 권한으로 GitHub Actions의 `Shared deployment`를 실행할 수 있다. [공유 배포 방법](docs/07-technical/shared-deployment.md)을 따른다. main 푸시만으로 자동 배포하지 않는다.

@@ -180,6 +180,7 @@
 | D157 | 검토 중 | 화면 가독성 개선을 위해 공통 UI에 Noto Sans KR을 적용해 비교한다 | 기존 도스필기 가독성 피드백. 최종 글꼴 선택은 검토 후 확정. [디자인 시스템](../design/mvp/design-system.md) |
 | D158 | 일부 대체됨: D159 | 청구서의 다른 항목을 표시한 뒤 보완 요청하며, 처음 틀린 서류마다 당일 기본급에서 1원을 차감한다 | 사용자 결정. D153의 오답 급여 규칙 보완. [업무 명세](05-ux/screens/document-work.md) |
 | D159 | 확정 | 서류 검토는 20초 동안 진행하고 제출한 서류의 정답은 2원, 오답은 1원으로 정산한다 | 사용자 결정. D153의 6건 기준과 D158의 기본급 차감 규칙을 대체한다. [업무 명세](05-ux/screens/document-work.md) |
+| D160 | 사용자 요청·공유 배포 구성 | 다른 개발자가 GitHub에서 main의 수동 배포를 실행 | 2026-11-28 사용자 요청. 전용 SSH 키·main 전용 환경·동시 배포 제어·검사·백업·웹/API 상태 확인을 연결한다. 개인 관리 키는 공유하지 않고 저장소 Write 이상 권한으로 실행한다. [사용 방법](07-technical/shared-deployment.md) |
 
 프로토타입 환경 선택(AI): Godot 4.7.2·GDScript·Compatibility와 Java/Spring Boot·PostgreSQL·Caddy를 사용한다(D038로 Django 대체). 임시 2D·압축 조작·수치·테스트 세션은 최종 게임 규칙이 아니다. [환경](07-technical/development.md)
 

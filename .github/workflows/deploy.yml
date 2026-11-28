@@ -1,0 +1,87 @@
+name: Shared deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '배포 범위 (서버 변경이 있으면 all)'
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - web
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lightsail-sydney-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment:
+      name: lightsail-sydney
+      url: ${{ vars.CP_PUBLIC_URL }}
+    env:
+      GODOT_BIN: ${{ github.workspace }}/.tools/godot/godot
+      CP_SERVER_HOST: ${{ vars.CP_SERVER_HOST }}
+      CP_SERVER_USER: ${{ vars.CP_SERVER_USER }}
+      CP_PUBLIC_URL: ${{ vars.CP_PUBLIC_URL }}
+      CP_DEPLOY_MODE: ${{ inputs.mode }}
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install renderer dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libfontconfig1 libgl1-mesa-dri xvfb xauth
+      - name: Install Godot 4.7.2 and Web templates
+        run: bash tools/setup-godot-ci.sh
+      - name: Test API and database rules
+        run: bash tools/test-server.sh
+      - name: Build Web and check JavaScript
+        run: |
+          bash tools/dev.sh web
+          node --check web/login.js
+      - name: Test office input and rendered day/night backgrounds
+        run: |
+          "$GODOT_BIN" --headless --path game --script "$PWD/tools/verify-office.gd"
+          xvfb-run -a "$GODOT_BIN" --path game --script "$PWD/tools/verify-night-background.gd" -- --minimal-fixture
+      - name: Prepare dedicated SSH identity
+        env:
+          DEPLOY_KEY: ${{ secrets.CP_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.CP_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$CP_SERVER_HOST" && test -n "$CP_PUBLIC_URL"
+          test -n "$DEPLOY_KEY" && test -n "$KNOWN_HOSTS"
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/cp-deploy-key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/cp-known-hosts"
+          printf 'CP_SSH_KEY=%s\nCP_KNOWN_HOSTS=%s\n' "$RUNNER_TEMP/cp-deploy-key" "$RUNNER_TEMP/cp-known-hosts" >> "$GITHUB_ENV"
+      - name: Back up and deploy
+        run: bash tools/deploy-server.sh
+      - name: Verify public version and video
+        run: python3 tools/verify-deployment.py "$CP_PUBLIC_URL"
+      - name: Deployment summary
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import json,os,subprocess
+          from pathlib import Path
+          info=json.loads(Path('builds/web/build-info.json').read_text())
+          sha=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as out:
+              out.write(f"## 배포 완료\n\n- 게임: {os.environ['CP_PUBLIC_URL']}\n- 커밋: `{sha}`\n- 범위: `{os.environ['CP_DEPLOY_MODE']}`\n- 웹 빌드: `{info['source_sha256']}`\n- 백업/복구 경로는 배포 단계 로그에 표시됩니다.\n")
+          PY
+      - name: Remove temporary SSH identity
+        if: always()
+        run: rm -f "$RUNNER_TEMP/cp-deploy-key" "$RUNNER_TEMP/cp-known-hosts"

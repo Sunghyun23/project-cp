@@ -12,13 +12,16 @@ func _initialize() -> void:
 	run.call_deferred()
 
 func run() -> void:
-	create_timer(20).timeout.connect(func(): printerr("FAIL night background timeout");quit(1))
+	create_timer(60).timeout.connect(func(): printerr("FAIL night background timeout");quit(1))
 	root.size=Vector2i(390,844)
 	game=OfflineMain.new()
 	game.session_save_path="/tmp/cp-night-no-session.cfg"
 	root.add_child(game)
 	game.set_process(false)
-	var fixture: Dictionary=JSON.parse_string(FileAccess.get_file_as_string("/tmp/cp-mvp-fixtures.json")).free
+	# CI에는 개인 기기의 임시 API 캡처가 없으므로 독립적인 최소 상태도 지원한다.
+	var fixture: Dictionary={"mvp_version":1,"phase":"free","week":1,"day":5,"money":20,"stamina":100,"character_id":"male","outfit":"basic","camp_day":0,"camp_minute":1079,"owned":[],"cargo":{},"field":{},"item_catalog":[],"weather":[],"meal_owned":false,"cooked":false,"rested":false}
+	if not "--minimal-fixture" in OS.get_cmdline_user_args() and FileAccess.file_exists("/tmp/cp-mvp-fixtures.json"):
+		fixture=JSON.parse_string(FileAccess.get_file_as_string("/tmp/cp-mvp-fixtures.json")).free
 	for place in ["pine","lake"]:
 		game.state=fixture.duplicate(true)
 		game.state.place=place;game.state.erase("placement_site")
