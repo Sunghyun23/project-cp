@@ -175,7 +175,8 @@ class MvpApiTest {
     @Test void quarterTurnChecksBoundsAndRotatedSupportSurface() {
         var s=MvpRules.initialState();s.put("phase","setup");s.put("place","lake");s.put("cargo",Map.of("tent",Map.of(),"table",Map.of(),"stove",Map.of()));
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(s,"place_item","tent",Map.of("x",.8,"y",0,"z",2,"rotation_degrees",0)));
-        var turned=MvpRules.transition(s,"place_item","tent",Map.of("x",.8,"y",0,"z",2,"rotation_degrees",90));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(s,"place_item","tent",Map.of("x",.8,"y",0,"z",2,"rotation_degrees",90)));
+        var turned=MvpRules.transition(s,"place_item","tent",Map.of("x",1,"y",0,"z",1,"rotation_degrees",90));
         assertEquals(90,((Map<?,?>)((Map<?,?>)turned.get("field")).get("tent")).get("rotation_degrees"));
         var table=MvpRules.transition(s,"place_item","table",Map.of("x",5,"y",0,"z",3,"rotation_degrees",90));
         var stacked=MvpRules.transition(table,"place_item","stove",Map.of("x",5,"y",.9,"z",3.6,"rotation_degrees",0));
@@ -230,9 +231,11 @@ class MvpApiTest {
     }
     @Test void fieldPlacementSupportsGroundAndTableButRejectsFloatingAndUnsupportedRemoval() {
         var s=MvpRules.initialState();s.put("phase","setup");s.put("place","lake");
-        s.put("cargo",new LinkedHashMap<>(Map.of("table",Map.of(),"lantern",Map.of())));
+        s.put("cargo",new LinkedHashMap<>(Map.of("table",Map.of(),"lantern",Map.of(),"chair",Map.of(),"rug",Map.of())));
         s=MvpRules.transition(s,"place_item","table",Map.of("x",3,"y",0,"z",3));
         var ground=s;
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(ground,"place_item","chair",Map.of("x",3,"y",.9,"z",3)));
+        assertThrows(IllegalArgumentException.class,()->MvpRules.transition(ground,"place_item","rug",Map.of("x",3,"y",0,"z",3)));
         assertThrows(IllegalArgumentException.class,()->MvpRules.transition(ground,"place_item","lantern",Map.of("x",3,"y",1.5,"z",3)));
         s=MvpRules.transition(s,"place_item","lantern",Map.of("x",3,"y",.9,"z",3));
         var stacked=s;

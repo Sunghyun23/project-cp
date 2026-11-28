@@ -19,13 +19,15 @@ func run() -> void:
 	assert(desk.visible and desk.size.is_equal_approx(Vector2(root.size)))
 	assert(desk.is_ancestor_of(root.gui_get_focus_owner()))
 	desk.approve.pressed.emit();assert(desk.stamp_mark.visible);assert(sent.back().choice=="approve" and sent.back().extra.case_id=="W1-D0-0")
-	assert(desk.revise.disabled)
+	var before_mark := sent.size()
 	desk.invoice_fields.amount.pressed.emit()
-	assert(desk.invoice_fields.amount.button_pressed and not desk.revise.disabled)
+	assert(sent.size()==before_mark+1 and sent.back().choice=="revise" and sent.back().extra.field=="amount")
+	var midpoint: Vector2 = desk.stamp_mark.position+desk.stamp_mark.size/2
+	assert(midpoint.is_equal_approx(desk.papers.get_global_rect().get_center()))
 	for touch in [false,true]:
 		var before_drag:=sent.size()
-		await drag(desk.invoice.global_position+Vector2(35,30),desk.revise.get_global_rect().get_center(),touch)
-		assert(sent.size()==before_drag+1 and sent.back().command=="office_review" and sent.back().choice=="revise" and sent.back().extra.field=="amount")
+		await drag(desk.invoice.global_position+Vector2(35,30),desk.approve.get_global_rect().get_center(),touch)
+		assert(sent.size()==before_drag+1 and sent.back().command=="office_review" and sent.back().choice=="approve")
 	var key:=InputEventKey.new();key.keycode=KEY_1;key.pressed=true;Input.parse_input_event(key);await process_frame
 	assert(sent.back().choice=="approve")
 	desk.approve.grab_focus()
@@ -36,7 +38,7 @@ func run() -> void:
 	ui.apply_state(state,true,"저장 중",false)
 	var count:=sent.size();desk.judge("approve");assert(sent.size()==count and desk.approve.disabled and not desk.invoice.draggable)
 	ui.apply_state(state,false,"연결을 확인해 주세요",true)
-	assert(desk.reload_button.visible and desk.revise.disabled)
+	assert(desk.reload_button.visible and desk.invoice_fields.amount.disabled)
 	ui.apply_state(state,false,"",false)
 	desk.pause_button.pressed.emit();assert(sent.back().command=="office_pause")
 	state.office_task.active=false;ui.apply_state(state,false,"",false)
@@ -56,10 +58,10 @@ func run() -> void:
 		assert(desk.approve.get_global_rect().end.y<=dimensions.y)
 		for field in desk.fields: assert(field.get_global_rect().end.x<=dimensions.x)
 	state.office_task.index=2;state.office_pay=3;state.office_remaining_ms=0;state.erase("office_case");ui.apply_state(state,false,"",false)
-	assert(desk.finish_button.visible and not desk.approve.visible and not desk.revise.visible)
+	assert(desk.finish_button.visible and not desk.approve.visible )
 	assert(desk.finish_button.text.contains("3원") and desk.progress.text.contains("0초"))
 	desk.finish_button.pressed.emit();assert(sent.back().command=="office_finish")
-	print("PASS office: fullscreen phone/cover/fold/PC/landscape / click / mouse+touch drag / keyboard / saving lock / recovery / finish")
+	print("PASS office: one-tap correction / centered approval stamp / fullscreen phone/cover/fold/PC/landscape / click / mouse+touch drag / keyboard / saving lock / recovery / finish")
 	quit()
 
 func drag(start: Vector2,finish: Vector2,touch: bool) -> void:

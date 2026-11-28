@@ -19,7 +19,12 @@ func _ready() -> void:
 	add_child(title)
 
 func _draw() -> void:
-	if packed: draw_string(get_theme_default_font(),Vector2(4,19),"✓",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("446b43"))
+	var ink := Assets.cargo_color(item_id)
+	var border := Rect2(Vector2(2, 2), size - Vector2(4, 4))
+	draw_rect(border, ink, false, 3)
+	if packed:
+		draw_rect(Rect2(Vector2(4, 4), Vector2(28, 22)), ink.darkened(.30))
+		draw_string(get_theme_default_font(),Vector2(6,20),"✓",HORIZONTAL_ALIGNMENT_LEFT,-1,18,Color("fff7df"))
 	var texture:=Assets.item_texture(item_id)
 	if texture: draw_texture_rect(texture,Rect2(Vector2((size.x-44)/2,2),Vector2(44,44)),false)
 	else: draw_string(get_theme_default_font(),Vector2(20,36),"음식",HORIZONTAL_ALIGNMENT_LEFT,-1,18)
@@ -34,8 +39,8 @@ func _draw() -> void:
 	for cell in shape: extent=extent.max(cell+Vector2i.ONE)
 	var origin:=Vector2((size.x-extent.x*12)/2,44)
 	for point in shape:
-		draw_rect(Rect2(origin+Vector2(point)*12,Vector2(11,11)),Color("6d8c61"))
-		draw_rect(Rect2(origin+Vector2(point)*12,Vector2(11,11)),Color("334e3d"),false)
+		draw_rect(Rect2(origin+Vector2(point)*12,Vector2(11,11)),ink if packed else ink.lightened(.35))
+		draw_rect(Rect2(origin+Vector2(point)*12,Vector2(11,11)),ink.darkened(.48),false,2)
 
 func _can_drop_data(at: Vector2, data: Variant) -> bool:
 	return get_parent()._can_drop_data(position+at,data)

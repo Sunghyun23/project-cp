@@ -15,12 +15,10 @@ var feedback: Label
 var rules: Label
 var pause_button: Button
 var approve: Button
-var revise: Button
 var finish_button: Button
 var reload_button: Button
 var invoice
 var fields: Array[Control]=[]
-var marked_field := ""
 var invoice_fields: Dictionary = {}
 var marking_style: StyleBoxFlat
 var scroll: ScrollContainer
@@ -45,16 +43,15 @@ func _ready() -> void:
 	progress=text("서류 검토",26);progress.size_flags_horizontal=SIZE_EXPAND_FILL;top.add_child(progress)
 	pause_button=Button.new();pause_button.text="잠시 나가기";pause_button.custom_minimum_size=Vector2(120,56)
 	pause_button.pressed.connect(func(): send("office_pause"));top.add_child(pause_button)
-	rules=text("거래처 · 금액 · 납기일 대조\n같음: 결재 / 다름: 보완 요청",22)
+	rules=text("거래처 · 금액 · 납기일 대조\n같으면 결재 · 다르면 청구서 항목 누르기",22)
 	layout.add_child(rules)
 	scroll=ScrollContainer.new();scroll.size_flags_vertical=SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	layout.add_child(scroll)
 	papers=BoxContainer.new();papers.size_flags_horizontal=SIZE_EXPAND_FILL;papers.size_flags_vertical=SIZE_EXPAND_FILL;papers.add_theme_constant_override("separation",8);scroll.add_child(papers)
-	feedback=text("청구서에서 다른 항목을 표시한 뒤 보완 요청을 누르세요.",22)
+	feedback=text("다른 항목을 누르면 바로 보완 요청해요.",22)
 	feedback.custom_minimum_size.y=38;layout.add_child(feedback)
 	var actions:=HBoxContainer.new();actions.add_theme_constant_override("separation",12);layout.add_child(actions)
 	approve=make_stamp("결재","approve","406949");approve.tooltip_text="키보드 1 · 결재";actions.add_child(approve)
-	revise=make_stamp("보완 요청","revise","8f5143");revise.tooltip_text="키보드 2 · 보완 요청";actions.add_child(revise)
 	finish_button=Button.new();finish_button.text="퇴근하기";finish_button.custom_minimum_size.y=56
 	finish_button.pressed.connect(func(): send("office_finish"));layout.add_child(finish_button)
 	reload_button=Button.new();reload_button.text="저장된 업무 다시 확인";reload_button.custom_minimum_size.y=56
@@ -67,9 +64,15 @@ func _ready() -> void:
 	stamp_sound.stream = preload("res://assets/audio/office-stamp.wav")
 	stamp_sound.volume_db = -16
 	add_child(stamp_sound)
-	stamp_mark = text("", 24, Color("a4312e"))
+	stamp_mark = text("", 48, Color("a4312e"))
 	stamp_mark.add_theme_color_override("font_outline_color", Color("fff4d3"))
-	stamp_mark.add_theme_constant_override("outline_size", 8)
+	stamp_mark.add_theme_constant_override("outline_size", 9)
+	var seal := StyleBoxFlat.new()
+	seal.bg_color = Color("fff1d9e8")
+	seal.border_color = Color("aa3934")
+	seal.set_border_width_all(4)
+	seal.set_corner_radius_all(7)
+	stamp_mark.add_theme_stylebox_override("normal", seal)
 	stamp_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stamp_mark.z_index = 1
 	stamp_mark.hide()
@@ -116,8 +119,7 @@ func sheet(heading: String, value: Dictionary, draggable: bool) -> PanelContaine
 			var marker := Button.new()
 			marker.text = rendered
 			marker.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			marker.toggle_mode = true
-			marker.tooltip_text = caption + " 표시"
+			marker.tooltip_text = caption + " 보완 요청"
 			var plain := StyleBoxEmpty.new()
 			marker.add_theme_stylebox_override("normal", plain)
 			marker.add_theme_stylebox_override("disabled", plain)
@@ -126,7 +128,7 @@ func sheet(heading: String, value: Dictionary, draggable: bool) -> PanelContaine
 			for variant in ["font_color", "font_pressed_color", "font_hover_color", "font_disabled_color", "font_focus_color"]:
 				marker.add_theme_color_override(variant, Color("26332b"))
 			marker.add_theme_font_size_override("font_size", 20)
-			marker.pressed.connect(func(): mark_field(key))
+			marker.pressed.connect(func(): judge("revise", key))
 			entry.add_child(marker)
 			fields.append(marker)
 			invoice_fields[key] = marker
@@ -150,7 +152,7 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	var paper: Dictionary=state.get("office_case",{})
 	var next_id: String=paper.get("id","")
 	if current_case!=next_id or papers.get_child_count()==0:
-		current_case=next_id;fields.clear();invoice_fields.clear();marked_field=""
+		current_case=next_id;fields.clear();invoice_fields.clear()
 		for child in papers.get_children(): papers.remove_child(child);child.queue_free()
 		invoice=null
 		if not done and not paper.is_empty():
@@ -162,43 +164,27 @@ func apply_state(value: Dictionary, saving: bool, message: String, must_check: b
 	feedback.text="저장 중…" if saving else message if must_check or (not message.is_empty() and not message.begins_with("서버 저장 완료")) else str(task.get("feedback","서류 내용을 대조해 주세요."))
 	if done and not saving and not must_check: feedback.text="검토 완료! 퇴근하면 오늘 급여를 받아요."
 	feedback.add_theme_color_override("font_color",Color("ffdb98") if int(task.get("mistakes",0))>0 else Color("f7edce"))
-	for button in [approve,revise]:
-		button.disabled=saving or must_check or done;button.visible=not done;button.case_id=current_case
+	approve.disabled=saving or must_check or done;approve.visible=not done;approve.case_id=current_case
 	if invoice!=null: invoice.draggable=not saving and not must_check
-	update_marking()
+	for marker in invoice_fields.values(): marker.disabled = saving or must_check
 	pause_button.disabled=saving or must_check or done
 	finish_button.visible=done;finish_button.disabled=saving or must_check
 	if done and not was_complete: focus_action.call_deferred()
 	reload_button.visible=must_check;reload_button.disabled=saving
 	fit.call_deferred()
 
-func judge(choice: String) -> void:
+func judge(choice: String, field := "") -> void:
 	if pending or check_required or current_case.is_empty(): return
-	if choice == "revise" and marked_field.is_empty():
-		feedback.text = "청구서에서 원본과 다른 항목을 먼저 누르세요."
-		return
 	if choice == "approve":
 		show_approval_stamp()
-	action_requested.emit("office_review",choice,{"case_id":current_case,"field":marked_field})
-
-func mark_field(key: String) -> void:
-	if pending or check_required: return
-	marked_field = "" if marked_field == key else key
-	update_marking()
-
-func update_marking() -> void:
-	for key in invoice_fields:
-		var marker: Button = invoice_fields[key]
-		marker.disabled = pending or check_required
-		marker.set_pressed_no_signal(key == marked_field)
-	revise.disabled = pending or check_required or marked_field.is_empty() or current_case.is_empty()
+	action_requested.emit("office_review",choice,{"case_id":current_case,"field":field})
 
 func show_approval_stamp() -> void:
 	if not is_instance_valid(invoice): return
 	if stamp_tween != null: stamp_tween.kill()
-	stamp_mark.text = "●  결재"
-	stamp_mark.size = Vector2(120, 38)
-	stamp_mark.position = get_global_transform().affine_inverse() * invoice.get_global_rect().get_center() - stamp_mark.size * 0.5
+	stamp_mark.text = "결재"
+	stamp_mark.size = Vector2(minf(200, size.x * .56), 78)
+	stamp_mark.position = get_global_transform().affine_inverse() * papers.get_global_rect().get_center() - stamp_mark.size * 0.5
 	stamp_mark.pivot_offset = stamp_mark.size * 0.5
 	stamp_mark.rotation_degrees = -12
 	stamp_mark.scale = Vector2.ONE * 1.7
@@ -224,7 +210,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not is_visible_in_tree(): return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode==KEY_1: judge("approve");accept_event()
-		elif event.keycode==KEY_2: judge("revise");accept_event()
 		elif event.keycode==KEY_ESCAPE: send("office_pause");accept_event()
 	elif event is InputEventJoypadButton and event.pressed and event.button_index==JOY_BUTTON_B:
 		send("office_pause");accept_event()
@@ -236,12 +221,11 @@ func fit() -> void:
 	var compact := size.y < 470
 	layout.add_theme_constant_override("separation", 6 if compact else 12)
 	pause_button.custom_minimum_size.y = 44 if compact else 56
-	rules.text = "거래처 · 금액 · 납기일 대조  |  같음: 결재 / 다름: 보완 요청" if compact else "거래처 · 금액 · 납기일 대조\n같음: 결재 / 다름: 보완 요청"
+	rules.text = "거래처 · 금액 · 납기일 대조  |  같으면 결재 · 다르면 청구서 항목 누르기" if compact else "거래처 · 금액 · 납기일 대조\n같으면 결재 · 다르면 청구서 항목 누르기"
 	rules.add_theme_font_size_override("font_size", 16 if compact else 20)
 	feedback.add_theme_font_size_override("font_size", 15 if compact else 18)
 	feedback.custom_minimum_size.y = 24 if compact else 38
-	for button in [approve, revise]:
-		button.custom_minimum_size.y = 48 if compact else 60
+	approve.custom_minimum_size.y = 48 if compact else 60
 	papers.vertical=false
 	for field in fields: field.add_theme_font_size_override("font_size",18 if compact or size.x<450 else 22 if size.x<700 else 26)
 	queue_redraw()

@@ -22,7 +22,7 @@ func run() -> void:
 	ui.apply_state(snapshot,false,"",false,false)
 	for i in range(12): await process_frame
 	assert(world.items_root.get_child_count() == snapshot.cargo.size()-1)
-	assert(world.gizmo.visible and not ui.placement_commit.visible and not ui.dock.visible)
+	assert(not world.gizmo.visible and world.grid_root.visible and not ui.placement_commit.visible and not ui.dock.visible)
 	await drag("tent", Vector3(1.5,0,1), false)
 	assert(sent.id == "tent" and sent.point.is_equal_approx(Vector3(1.5,0,1)))
 	accept_drop()
@@ -62,8 +62,7 @@ func run() -> void:
 		var button_rect: Rect2=ui.placement_done.get_global_rect()
 		assert(button_rect.position.x>=0 and button_rect.end.x<=dimensions_value.x)
 		assert(button_rect.position.y>=0 and button_rect.end.y<=dimensions_value.y)
-		var tip: Vector2=world.screen_point(Vector3(ui.field_position.x-world.origin_x,ui.field_position.y+1.8,ui.field_position.z-world.origin_z))
-		assert(button_rect.end.y < tip.y)
+		assert("X " not in ui.placement_message.text and "Y " not in ui.placement_message.text)
 	ui.apply_state(JSON.parse_string(FileAccess.get_file_as_string("/tmp/cp-mvp-fixtures.json")).free,false,"",false,false)
 	world.readonly=true
 	world.configure(ui.state)

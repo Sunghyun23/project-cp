@@ -23,7 +23,7 @@ final class MvpRules {
     }
     static List<Map<String,Object>> catalog() {
         return ITEMS.entrySet().stream().map(e -> Map.<String,Object>of("id",e.getKey(),"name",e.getValue().name(),
-                "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0),"rotation_step_degrees",90,"allowed_rotations",List.of(0,90,180,270))).toList();
+                "price",e.getValue().price(),"cells",e.getValue().cells(),"stackable",CampsiteCatalog.surface(e.getKey()).get("stackable"),"can_place_on_table",Boolean.TRUE.equals(CampsiteCatalog.surface(e.getKey()).get("can_place_on_table")),"surface_height",CampsiteCatalog.surface(e.getKey()).getOrDefault("surface_height",0),"rotation_step_degrees",90,"allowed_rotations",List.of(0,90,180,270))).toList();
     }
     static Map<String,Object> initialState() { return upgrade(PrototypeRules.legacyInitialState()); }
     static Map<String,Object> upgrade(Map<String,Object> current) {
@@ -127,7 +127,7 @@ final class MvpRules {
         double n=((Number)value).doubleValue();need(Double.isFinite(n)&&n>=min&&n<=max,"캠핑장 배치 범위를 벗어났어요.");return n;
     }
     static double[] bounds(String id,boolean rotated) {
-        double[] b=switch(id){case "tent"->new double[]{2.1,1.8,1.4};case "table"->new double[]{2.1,.9,1.4};
+        double[] b=switch(id){case "tent"->new double[]{2.0,1.8,2.0};case "table"->new double[]{2.1,.9,1.4};
             case "chair"->new double[]{1.0,1.2,1.0};case "stove"->new double[]{1.4,.65,.7};
             case "lantern"->new double[]{.5,1.0,.7};default->new double[]{1.4,.06,2.1};};
         return rotated?new double[]{b[2],b[1],b[0]}:b;
@@ -167,6 +167,7 @@ final class MvpRules {
         }
         var field=grid(s,"field");
         if(y>.02) {
+            need(Boolean.TRUE.equals(CampsiteCatalog.surface(id).get("can_place_on_table")),"이 장비는 바닥에만 놓을 수 있어요.");
             boolean supported=false;
             for(var entry:field.entrySet()) {
                 if(entry.getKey().equals(id)||!Boolean.TRUE.equals(CampsiteCatalog.surface(entry.getKey()).get("stackable")))continue;
@@ -179,11 +180,11 @@ final class MvpRules {
         } else y=0;
         if(Boolean.TRUE.equals(CampsiteCatalog.surface(id).get("stackable"))&&field.containsKey(id))need(!hasSupportedItems(field,id),"받침 위 물건을 먼저 내려 주세요.");
         for(var e:field.entrySet()) {
-            if(e.getKey().equals(id)||id.equals("rug")||e.getKey().equals("rug"))continue;
+            if(e.getKey().equals(id))continue;
             var p=(Map<String,Object>)e.getValue();var q=bounds(e.getKey(),quarterTurn(p));
             double px=((Number)p.get("x")).doubleValue(),py=((Number)p.get("y")).doubleValue(),pz=((Number)p.get("z")).doubleValue();
             boolean overlap=Math.abs(x-px)<(b[0]+q[0])/2-.02&&Math.abs(z-pz)<(b[2]+q[2])/2-.02&&y<py+q[1]-.02&&y+b[1]>py+.02;
-            need(!overlap,"다른 장비와 겹쳐요. X·Y·Z 위치를 조정해 주세요.");
+            need(!overlap,"다른 장비와 겹쳐요. 빈 곳으로 옮겨 주세요.");
         }
         boolean isNew=!field.containsKey(id);field.put(id,new LinkedHashMap<>(Map.of("x",x,"y",y,"z",z,"rotated",rotated,"rotation_degrees",rotation)));
         if(isNew)spendStamina(s,1);

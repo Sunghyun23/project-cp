@@ -17,7 +17,7 @@
   "items": {
     "tent": {
       "row": 0,
-      "sprite_world_width": 2.6,
+      "sprite_world_width": 3.5,
       "frames": [
         {
           "angle": 0,
